@@ -70,6 +70,12 @@
                 >
                     Sync HTML from Preview
                 </button>
+                <button
+                    id="downloadButton"
+                    class="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-md flex-1"
+                >
+                    Download HTML
+                </button>
             </div>
         </div>
 
@@ -95,6 +101,7 @@
             const previewFrame = document.getElementById('previewFrame');
             const renderButton = document.getElementById('renderButton');
             const syncButton = document.getElementById('syncButton');
+            const downloadButton = document.getElementById('downloadButton'); // New button reference
             const messageBox = document.getElementById('messageBox');
 
             // Function to display messages to the user
@@ -178,6 +185,36 @@
                 }
             }
 
+            // New function to download the HTML code
+            function downloadHtml() {
+                try {
+                    // Get the HTML content from the textarea
+                    const htmlContent = htmlCodeTextArea.value;
+                    const filename = 'my_editable_page.html';
+
+                    // Create a Blob from the HTML content
+                    const blob = new Blob([htmlContent], { type: 'text/html' });
+
+                    // Create a temporary anchor element
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob); // Create a URL for the blob
+                    a.download = filename; // Set the download filename
+
+                    // Append the anchor to the body (not visible) and click it to trigger download
+                    document.body.appendChild(a);
+                    a.click();
+
+                    // Clean up: remove the anchor and revoke the object URL
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(a.href);
+
+                    showMessage(`'${filename}' downloaded successfully!`, 3000);
+                } catch (error) {
+                    console.error('Error downloading HTML:', error);
+                    showMessage('Error downloading HTML. Check console for details.', 5000);
+                }
+            }
+
             // Event Listeners
             // Render button click
             renderButton.addEventListener('click', updatePreview);
@@ -185,12 +222,11 @@
             // Sync button click
             syncButton.addEventListener('click', syncFromPreview);
 
+            // Download button click (NEW)
+            downloadButton.addEventListener('click', downloadHtml);
+
             // Initial render when the page loads with the default content
             updatePreview();
-
-            // Optional: Listen for changes in the textarea to auto-update (less common for WYSIWYG,
-            // as changes often come from the visual editor, but useful for initial input)
-            // htmlCodeTextArea.addEventListener('input', updatePreview);
         });
     </script>
 </body>
