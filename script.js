@@ -8,6 +8,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageBox = document.getElementById('messageBox');
     const editorToolbar = document.getElementById('editorToolbar');
 
+    // Panel and Splitter for resizing
+    const leftPanel = document.getElementById('leftPanel');
+    const rightPanel = document.getElementById('rightPanel');
+    const splitter = document.getElementById('splitter');
+    const appContainer = document.getElementById('app-container');
+
     // Toolbar buttons
     const boldBtn = document.querySelector('[data-command="bold"]');
     const italicBtn = document.querySelector('[data-command="italic"]');
@@ -19,11 +25,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const orderedListBtn = document.querySelector('[data-command="insertOrderedList"]');
     const fontColorPicker = document.getElementById('fontColorPicker');
     const fontBgColorPicker = document.getElementById('fontBgColorPicker');
-    const divBgColorPicker = document.getElementById('divBgColorPicker'); // For block background
+    const divBgColorPicker = document.getElementById('divBgColorPicker');
     const insertLinkBtn = document.getElementById('insertLinkBtn');
     const insertImageBtn = document.getElementById('insertImageBtn');
     const clearFormatBtn = document.getElementById('clearFormatBtn');
     const fontSizeSelect = document.getElementById('fontSizeSelect');
+    const fontFamilySelect = document.getElementById('fontFamilySelect'); // New font family select
 
     // Modals
     const linkModal = document.getElementById('linkModal');
@@ -37,6 +44,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let iframeDoc; // Reference to the iframe's document
     let currentRange = null; // Store selection range for modal interactions
+
+    // --- Google Fonts List (a selection of diverse open-source fonts) ---
+    const googleFonts = [
+        "Arial", "Verdana", "Tahoma", "Trebuchet MS", "Georgia", "Times New Roman", // Common web safe fonts
+        "Open Sans", "Roboto", "Lato", "Montserrat", "Inter", "Poppins", "Ubuntu", "Nunito", "Raleway", // Sans-serif
+        "Merriweather", "Playfair Display", "Lora", "Crimson Text", "Libre Baskerville", "EB Garamond", "Bitter", // Serif
+        "Oswald", "Bebas Neue", "Anton", "Fjalla One", "Staatliches", // Display/Condensed
+        "Dancing Script", "Indie Flower", "Kalam", "Permanent Marker", "Shadows Into Light", "Pacifico", "Architects Daughter", "Lobster", "Courgette", "Tangerine", // Script/Handwriting
+        "Fira Sans", "PT Sans", "Source Sans 3", "Work Sans", "Dosis", "Exo 2", "Heebo", "IBM Plex Sans", "Josefin Sans", "Kanit", "Mada", "Manrope", "Martel", "Merriweather Sans", "Mukta", "Noto Sans", "Oxygen", "Questrial", "Quicksand", "Rubik", "Slabo 27px", "Space Grotesk", "Sora", "Spectral", "Spline Sans", "Syne", "Tenor Sans", "Titillium Web", "Varela Round", "Zilla Slab", // More modern/diverse sans-serif & serif
+        "Chakra Petch", "DotGothic16", "Press Start 2P", "Comfortaa", "Orbitron", "Overpass", "Rajdhani", "Secular One", "Sofia Sans", "Solway", "Texturina", "Trirong", "Vollkorn", "Volkhov", "Xanh Mono", // Unique/Experimental
+        "Amatic SC", "Arimo", "Asap", "Barlow", "Blinker", "Catamaran", "Cousine", "Encode Sans", "Exo", "Faustina", "Gelasio", "IBM Plex Mono", "Inconsolata", "Karla", "Nanum Gothic", "Old Standard TT", "Patua One", "Philosopher", "Proza Libre", "Red Hat Display", "Sarabun", "Special Elite"
+    ];
+
 
     // --- Utility Functions ---
 
@@ -69,10 +89,11 @@ document.addEventListener('DOMContentLoaded', () => {
             iframeDoc.execCommand(command, false, value);
             // After command, sync the content back to the textarea (debounced)
             syncFromPreviewDebounced();
-            showMessage(`${command} applied!`, 1500);
+            updateToolbarState(); // Update toolbar state immediately after command
+            showMessage(`${command.replace(/([A-Z])/g, ' $1').trim()} applied!`, 1500); // Nicer message
         } catch (error) {
             console.error(`Error executing command '${command}':`, error);
-            showMessage(`Error applying ${command}.`, 3000);
+            showMessage(`Error applying ${command.replace(/([A-Z])/g, ' $1').trim()}.`, 3000);
         }
     }
 
@@ -105,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Uses queryCommandState and queryCommandValue.
      */
     function updateToolbarState() {
-        if (!iframeDoc) return;
+        if (!iframeDoc || !previewFrame.contentWindow) return; // Ensure iframe is ready
 
         const selection = previewFrame.contentWindow.getSelection();
         if (!selection || selection.rangeCount === 0) {
@@ -115,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fontBgColorPicker.value = '#FFFFFF';
             divBgColorPicker.value = '#FFFFFF';
             fontSizeSelect.value = ''; // Reset font size selection
+            fontFamilySelect.value = ''; // Reset font family selection
             return;
         }
 
@@ -128,54 +150,67 @@ document.addEventListener('DOMContentLoaded', () => {
                     button.classList.remove('active');
                 }
             } catch (e) {
-                // Some commands might not support queryCommandState (e.g., foreColor)
                 button.classList.remove('active');
             }
         });
 
-        // Update color pickers based on current selection
+        const rgbToHex = (rgb) => {
+            if (!rgb || rgb.includes('transparent')) return '#000000';
+            if (rgb.startsWith('#')) return rgb;
+            const parts = rgb.match(/\d+/g);
+            if (!parts || parts.length < 3) return '#000000';
+            return '#' + parts.slice(0, 3).map(x => {
+                const hex = parseInt(x).toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            }).join('');
+        };
+
         try {
             let foreColor = iframeDoc.queryCommandValue('foreColor');
             let backColor = iframeDoc.queryCommandValue('backColor');
-            let highlightColor = iframeDoc.queryCommandValue('hiliteColor'); // for highlight
-
-            // queryCommandValue returns RGB(A) or hex. Normalize to hex if possible.
-            // Example: "rgb(0, 0, 0)" -> "#000000"
-            const rgbToHex = (rgb) => {
-                if (!rgb || rgb.includes('transparent')) return '#000000'; // Default black or white
-                if (rgb.startsWith('#')) return rgb; // Already hex
-                const parts = rgb.match(/\d+/g);
-                if (!parts || parts.length < 3) return '#000000';
-                return '#' + parts.slice(0, 3).map(x => {
-                    const hex = parseInt(x).toString(16);
-                    return hex.length === 1 ? '0' + hex : hex;
-                }).join('');
-            };
+            let highlightColor = iframeDoc.queryCommandValue('hiliteColor'); // For highlight
 
             fontColorPicker.value = rgbToHex(foreColor) || '#000000';
-            fontBgColorPicker.value = rgbToHex(backColor || highlightColor) || '#FFFFFF'; // Prioritize backColor, then hiliteColor
+            fontBgColorPicker.value = rgbToHex(backColor || highlightColor) || '#FFFFFF';
 
-            // For div background, check parent element. More complex, might require iterating parents.
-            // For simplicity, we'll keep the input but its 'active' state is harder to determine with execCommand
-            // Consider checking computed style of the closest block element parent.
+            // For div background, check parent element's computed style
+            const range = selection.getRangeAt(0);
+            let targetElement = range.commonAncestorContainer.nodeType === 3 ? range.commonAncestorContainer.parentNode : range.commonAncestorContainer;
+            while (targetElement && !['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BODY'].includes(targetElement.tagName)) {
+                targetElement = targetElement.parentNode;
+            }
+            if (targetElement && targetElement !== iframeDoc.body) {
+                const computedStyle = previewFrame.contentWindow.getComputedStyle(targetElement);
+                divBgColorPicker.value = rgbToHex(computedStyle.backgroundColor) || '#FFFFFF';
+            } else {
+                divBgColorPicker.value = '#FFFFFF';
+            }
+
         } catch (e) {
             console.warn("Could not query command value for colors:", e);
         }
 
-        // Update font size select
         try {
              const fontSize = iframeDoc.queryCommandValue('fontSize');
-             if (fontSize) {
-                 // Convert pixel or point size to 1-7 scale for select. This is a rough estimation.
-                 // Typical mappings: 1(8px), 2(10px), 3(12px), 4(14px), 5(18px), 6(24px), 7(36px)
-                 // Or, if execCommand returns 1-7, use directly.
-                 fontSizeSelect.value = fontSize;
-             } else {
-                 fontSizeSelect.value = '';
-             }
+             fontSizeSelect.value = fontSize || '';
         } catch (e) {
             console.warn("Could not query command value for font size:", e);
             fontSizeSelect.value = '';
+        }
+
+        try {
+            const fontFamily = iframeDoc.queryCommandValue('fontName');
+            // execCommand('fontName') returns font name in quotes if it contains spaces.
+            // Remove quotes and try to match with our list.
+            const cleanFontFamily = fontFamily.replace(/["']/g, '').split(',')[0].trim(); // Take first font in stack
+            if (googleFonts.includes(cleanFontFamily)) {
+                fontFamilySelect.value = cleanFontFamily;
+            } else {
+                fontFamilySelect.value = ''; // Reset if not a recognized font
+            }
+        } catch (e) {
+            console.warn("Could not query command value for font family:", e);
+            fontFamilySelect.value = '';
         }
     }
 
@@ -208,23 +243,29 @@ document.addEventListener('DOMContentLoaded', () => {
             const htmlContent = htmlCodeTextArea.value;
             iframeDoc = previewFrame.contentWindow.document;
 
-            // Basic HTML structure for the iframe, including essential styles for predictable rendering
-            // and an "Inter" font for consistency.
+            // Prepare dynamic font imports for the iframe
+            let fontImports = '';
+            googleFonts.forEach(font => {
+                // Replace spaces with '+' for Google Fonts URL and add a weight if needed (e.g., :wght@400)
+                const fontUrl = font.replace(/ /g, '+');
+                fontImports += `@import url('https://fonts.googleapis.com/css2?family=${fontUrl}&display=swap');\n`;
+            });
+
             const iframeHTML = `
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                    ${fontImports}
                     <style>
                         body {
                             margin: 0;
                             padding: 1rem;
                             box-sizing: border-box;
-                            font-family: 'Inter', sans-serif;
+                            font-family: 'Inter', sans-serif; /* Default base font */
                             line-height: 1.6;
-                            word-wrap: break-word; /* Prevents long words from breaking layout */
-                            min-height: calc(100% - 2rem); /* Ensure editable area has height */
-                            outline: none; /* Remove default contenteditable outline */
+                            word-wrap: break-word;
+                            min-height: calc(100% - 2rem);
+                            outline: none;
                         }
                         * {
                             box-sizing: border-box;
@@ -233,20 +274,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             max-width: 100%;
                             height: auto;
                             display: block;
-                            margin: 0.5rem 0; /* Add some space around images */
-                            cursor: pointer; /* Indicate images are interactable */
+                            margin: 0.5rem 0;
+                            cursor: pointer;
                         }
                         a {
-                            color: #4A90E2; /* Primary color for links */
+                            color: var(--primary-color, #4A90E2); /* Use CSS variable if defined in iframe, fallback to static */
                             text-decoration: underline;
                         }
-                        /* Basic reset for lists */
                         ul, ol {
                             padding-left: 1.5rem;
                             margin-top: 0.5rem;
                             margin-bottom: 0.5rem;
                         }
-                        /* Ensure paragraph spacing */
                         p {
                             margin-bottom: 0.8rem;
                         }
@@ -269,10 +308,9 @@ document.addEventListener('DOMContentLoaded', () => {
             iframeDoc.designMode = 'on';
 
             // Add input event listener to the iframe body for continuous sync and toolbar updates
-            // Use 'input' for contenteditable to catch text changes.
             iframeDoc.body.addEventListener('input', () => {
                 syncFromPreviewDebounced();
-                updateToolbarState(); // Update toolbar state on every input
+                updateToolbarState();
             });
 
             // Listen for selection changes in the iframe to update toolbar state
@@ -294,6 +332,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try {
+            // contenteditable can sometimes add extra elements or attributes (e.g., <br> in empty lines)
+            // For a truly production-ready app, you'd integrate a lightweight HTML sanitizer/cleaner here.
+            // For now, we get the raw innerHTML.
             const liveHtmlContent = iframeDoc.body.innerHTML;
             htmlCodeTextArea.value = liveHtmlContent;
             showMessage('HTML synced from preview to source code.', 2000);
@@ -328,6 +369,65 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Panel Resizing Logic ---
+    let isResizing = false;
+
+    splitter.addEventListener('mousedown', (e) => {
+        // Only allow resizing on desktop (horizontal layout)
+        if (window.innerWidth < 1024) return;
+
+        isResizing = true;
+        document.body.style.cursor = 'ew-resize'; // Change cursor globally
+        document.body.style.userSelect = 'none'; // Prevent text selection during drag
+
+        const startX = e.clientX;
+        const leftPanelWidth = leftPanel.offsetWidth;
+        const totalWidth = appContainer.offsetWidth;
+
+        const onMouseMove = (moveEvent) => {
+            if (!isResizing) return;
+
+            const deltaX = moveEvent.clientX - startX;
+            let newLeftPanelWidth = leftPanelWidth + deltaX;
+
+            // Calculate percentage to ensure responsiveness
+            let newLeftPanelPercentage = (newLeftPanelWidth / totalWidth) * 100;
+
+            // Set min/max width percentages
+            if (newLeftPanelPercentage < 20) newLeftPanelPercentage = 20; // Min 20%
+            if (newLeftPanelPercentage > 80) newLeftPanelPercentage = 80; // Max 80%
+
+            leftPanel.style.width = `${newLeftPanelPercentage}%`;
+            rightPanel.style.width = `${100 - newLeftPanelPercentage}%`; // Right panel takes remaining
+        };
+
+        const onMouseUp = () => {
+            isResizing = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.body.style.cursor = ''; // Reset cursor
+            document.body.style.userSelect = ''; // Re-enable text selection
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    });
+
+
+    // --- Font Family Population ---
+    function populateFontFamilySelect() {
+        fontFamilySelect.innerHTML = '<option value="" disabled selected>Font Family</option>';
+        googleFonts.forEach(font => {
+            const option = document.createElement('option');
+            option.value = font;
+            option.textContent = font;
+            // Apply font to option itself for preview
+            option.style.fontFamily = `'${font}', sans-serif`;
+            fontFamilySelect.appendChild(option);
+        });
+    }
+
+
     // --- Event Listeners ---
 
     // Panel action buttons
@@ -352,23 +452,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     fontBgColorPicker.addEventListener('change', (event) => {
-        // Use 'backColor' for highlight or background color.
         executeCommand('backColor', event.target.value);
     });
 
     divBgColorPicker.addEventListener('change', (event) => {
-        // This command applies a background color to the currently selected block element (e.g., <p>, <div>).
-        // It's not standard execCommand for 'div background', but 'backColor' usually affects text background.
-        // To apply background to a block, we'd need more complex DOM manipulation.
-        // For simplicity, we'll try to apply it to the parent block element.
         if (iframeDoc && previewFrame.contentWindow.getSelection().rangeCount > 0) {
             const selection = previewFrame.contentWindow.getSelection();
             const range = selection.getRangeAt(0);
-            const commonAncestor = range.commonAncestorContainer;
-
-            // Find the closest block-level element
-            let targetElement = commonAncestor.nodeType === 3 ? commonAncestor.parentNode : commonAncestor;
-            while (targetElement && !['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'].includes(targetElement.tagName)) {
+            let targetElement = range.commonAncestorContainer.nodeType === 3 ? range.commonAncestorContainer.parentNode : range.commonAncestorContainer;
+            while (targetElement && !['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'].includes(targetElement.tagName) && targetElement !== iframeDoc.body) {
                 targetElement = targetElement.parentNode;
             }
 
@@ -377,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showMessage('Block background color applied.', 1500);
                 syncFromPreviewDebounced();
             } else {
-                showMessage('No suitable block element selected to apply background.', 3000);
+                showMessage('No suitable block element selected to apply background. Select a paragraph, heading, or div.', 3000);
             }
         }
     });
@@ -387,10 +479,24 @@ document.addEventListener('DOMContentLoaded', () => {
         executeCommand('fontSize', event.target.value);
     });
 
+    // Font family select
+    fontFamilySelect.addEventListener('change', (event) => {
+        const selectedFont = event.target.value;
+        if (selectedFont) {
+            // Apply the font to the selected text
+            executeCommand('fontName', selectedFont);
+            // Optionally, update the iframe's default body font if no text is selected
+            if (iframeDoc && previewFrame.contentWindow.getSelection().rangeCount === 0 || previewFrame.contentWindow.getSelection().isCollapsed) {
+                 iframeDoc.body.style.fontFamily = `'${selectedFont}', sans-serif`;
+            }
+        }
+    });
+
+
     // Insert Link button
     insertLinkBtn.addEventListener('click', () => {
         openModal(linkModal);
-        linkURLInput.focus(); // Focus the URL input
+        linkURLInput.focus();
     });
 
     confirmLinkBtn.addEventListener('click', () => {
@@ -402,25 +508,37 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // If no text is provided, use the URL as text
-        if (!text) {
-            text = url;
-        }
-
-        // Restore selection if a range was stored
         if (currentRange) {
             const selection = previewFrame.contentWindow.getSelection();
             selection.removeAllRanges();
             selection.addRange(currentRange);
         }
 
-        // Insert the link
-        executeCommand('createLink', url);
-        // After inserting link, if the text was not provided by user,
-        // we might need to manually set the innerHTML of the created link
-        // This is complex with execCommand, it usually creates an anchor with the URL as text if no text is selected.
-        // A better approach would be to find the last created link and set its text.
-        // For now, execCommand will handle it.
+        // If no text was selected or provided, create a link with the URL as text
+        if (!text && currentRange && currentRange.collapsed) {
+             executeCommand('createLink', url);
+             // After execCommand, find the newly created anchor and set its text if it was initially empty
+             const newLink = iframeDoc.querySelector(`a[href="${url}"]`);
+             if (newLink && newLink.textContent === url) { // Check if execCommand used URL as text
+                 newLink.textContent = url; // Ensure it's correctly set if no text was pre-selected
+             }
+        } else if (!text && currentRange && !currentRange.collapsed) {
+            // If text was selected, execCommand uses selected text. No need to modify.
+            executeCommand('createLink', url);
+        } else if (text) {
+            // If text was provided in the modal, insert it as text then create link.
+            if (currentRange) {
+                currentRange.deleteContents(); // Remove selected text
+                currentRange.insertNode(iframeDoc.createTextNode(text)); // Insert new text
+                currentRange.selectNode(currentRange.startContainer.childNodes[currentRange.startOffset]); // Select newly inserted text
+                const selection = previewFrame.contentWindow.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(currentRange);
+            } else {
+                executeCommand('insertHTML', text); // Insert text at cursor
+            }
+            executeCommand('createLink', url); // Apply link to the inserted text
+        }
         showMessage('Link inserted.', 1500);
         closeModal(linkModal);
     });
@@ -428,7 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Insert Image button
     insertImageBtn.addEventListener('click', () => {
         openModal(imageModal);
-        imageURLInput.focus(); // Focus the URL input
+        imageURLInput.focus();
     });
 
     confirmImageBtn.addEventListener('click', () => {
@@ -438,14 +556,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Restore selection if a range was stored
         if (currentRange) {
             const selection = previewFrame.contentWindow.getSelection();
             selection.removeAllRanges();
             selection.addRange(currentRange);
         }
 
-        // Insert the image
         executeCommand('insertImage', url);
         showMessage('Image inserted.', 1500);
         closeModal(imageModal);
@@ -475,6 +591,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Initial Setup ---
-    // Initial render when the page loads with the default content
-    updatePreview();
+    populateFontFamilySelect(); // Populate font dropdown on load
+    updatePreview(); // Initial render with default content and font imports
 });
