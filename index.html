@@ -6,6 +6,8 @@
     <title>Advanced WYSIWYG HTML Editor</title>
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Split.js for Resizable Panels -->
+    <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
     <style>
         /* Variables for consistent styling */
         :root {
@@ -36,31 +38,18 @@
             height: 100vh; /* Full viewport height */
         }
 
+        /*
+         * RESIZING STRATEGY UPDATE:
+         * The #app-container is now a flex container. The Split.js library will dynamically
+         * control the width/height of the child panels. We handle the horizontal/vertical
+         * split direction via JavaScript based on viewport width.
+        */
         #app-container {
             flex: 1; /* Take remaining height */
-            display: grid; /* Use grid for main layout */
-            grid-template-columns: 1fr 8px 1fr; /* Two columns for panels, one for divider */
+            display: flex; /* Use flexbox for Split.js to manage */
             padding: var(--spacing-unit);
-            gap: 0; /* Gap will be handled by the divider's margin */
-            min-height: 0; /* Allow panels to shrink */
-        }
-
-        /* Responsive layout for panels - stacking vertically on smaller screens */
-        @media (max-width: 1023px) {
-            #app-container {
-                grid-template-columns: 1fr; /* Single column on small screens */
-                grid-template-rows: 1fr 8px 1fr; /* Stack panels and divider */
-                gap: var(--spacing-unit); /* Add gap when stacked */
-                overflow-y: auto; /* Allow scrolling if content exceeds height */
-                min-height: auto; /* Revert min-height for vertical stacking */
-            }
-
-            #panel-divider {
-                width: 100%; /* Full width when stacked */
-                height: 8px; /* Fixed height for the divider */
-                cursor: ns-resize; /* North-south resize cursor */
-                margin: var(--spacing-unit) 0; /* Add margin when stacked */
-            }
+            gap: 0;
+            min-height: 0; /* Important for flexbox children to shrink properly */
         }
 
         .panel {
@@ -71,8 +60,6 @@
             box-shadow: var(--shadow-light);
             padding: calc(var(--spacing-unit) * 1.5);
             overflow: hidden; /* Ensure content within panels doesn't cause overflow */
-            min-width: 250px; /* Minimum width for panels */
-            min-height: 200px; /* Minimum height for panels on stacked layout */
         }
 
         .panel-title {
@@ -85,7 +72,7 @@
 
         /* Code Editor Panel */
         .code-editor-panel {
-            /* flex: 1; -> Handled by grid-template-columns now */
+            /* Flex properties are now controlled by Split.js */
         }
 
         .code-textarea {
@@ -95,11 +82,11 @@
             border: 1px solid var(--border-color);
             border-radius: calc(var(--border-radius) / 2);
             font-family: var(--font-family-code);
-            font-size: 0.95rem; /* Slightly smaller for code */
-            resize: none; /* Controlled by flexbox */
+            font-size: 0.95rem;
+            resize: none;
             outline: none;
             transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            margin-bottom: var(--spacing-unit); /* Space for buttons */
+            margin-bottom: var(--spacing-unit);
         }
 
         .code-textarea:focus {
@@ -109,8 +96,8 @@
 
         .panel-actions {
             display: flex;
-            flex-wrap: wrap; /* Allow buttons to wrap on small screens */
-            gap: 0.75rem; /* Spacing between buttons */
+            flex-wrap: wrap;
+            gap: 0.75rem;
             justify-content: center;
         }
 
@@ -125,58 +112,43 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            flex: 1 1 auto; /* Allow buttons to grow and shrink */
-            min-width: 140px; /* Ensure buttons don't get too narrow */
+            flex: 1 1 auto;
+            min-width: 140px;
             justify-content: center;
         }
+        
+        .action-button i { font-size: 1.1em; }
+        .action-button.primary { background-color: var(--primary-color); color: white; }
+        .action-button.primary:hover { background-color: #3A7CD0; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3); }
+        .action-button.secondary { background-color: var(--secondary-color); color: white; }
+        .action-button.secondary:hover { background-color: #7258D6; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(140, 111, 247, 0.3); }
+        .action-button.tertiary { background-color: var(--tertiary-color); color: white; }
+        .action-button.tertiary:hover { background-color: #27AE60; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(46, 204, 113, 0.3); }
 
-        .action-button i {
-            font-size: 1.1em;
-        }
-
-        .action-button.primary {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .action-button.primary:hover {
-            background-color: #3A7CD0;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
-        }
-
-        .action-button.secondary {
-            background-color: var(--secondary-color);
-            color: white;
-        }
-
-        .action-button.secondary:hover {
-            background-color: #7258D6;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(140, 111, 247, 0.3);
-        }
-
-        .action-button.tertiary {
-            background-color: var(--tertiary-color);
-            color: white;
-        }
-
-        .action-button.tertiary:hover {
-            background-color: #27AE60;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(46, 204, 113, 0.3);
-        }
-
-        /* Divider for resizing panels */
-        #panel-divider {
-            width: 8px; /* Fixed width for the divider */
+        /*
+         * RESIZING STRATEGY UPDATE:
+         * Styles for the gutter element generated by Split.js. This replaces the old #panel-divider.
+         * We style both horizontal and vertical orientations.
+        */
+        .gutter {
             background-color: var(--border-color);
-            cursor: ew-resize; /* East-west resize cursor */
+            background-repeat: no-repeat;
+            background-position: 50%;
             border-radius: var(--border-radius);
-            margin: 0 var(--spacing-unit); /* Add margin to create visual gap */
-            flex-shrink: 0; /* Prevent it from shrinking below 8px */
-            z-index: 5; /* Ensure divider is above content for dragging */
+            transition: background-color 0.2s ease;
         }
+        .gutter:hover {
+            background-color: var(--primary-color);
+        }
+        .gutter.gutter-horizontal {
+            cursor: ew-resize;
+            margin: 0 var(--spacing-unit);
+        }
+        .gutter.gutter-vertical {
+            cursor: ns-resize;
+            margin: var(--spacing-unit) 0;
+        }
+
 
         /* Preview Panel */
         .preview-panel {
@@ -186,12 +158,12 @@
 
         .editor-toolbar {
             display: flex;
-            flex-wrap: wrap; /* Allow toolbar items to wrap */
+            flex-wrap: wrap;
             gap: 0.5rem;
             padding: 0.75rem 0;
             border-bottom: 1px solid var(--border-color);
             margin-bottom: var(--spacing-unit);
-            justify-content: center; /* Center align toolbar items */
+            justify-content: center;
             align-items: center;
         }
 
@@ -230,212 +202,56 @@
             border-radius: 4px;
         }
 
-        .color-picker-container .color-label {
-            font-size: 0.9rem;
-            white-space: nowrap; /* Prevent label from wrapping */
-        }
+        .color-picker-container .color-label { font-size: 0.9rem; white-space: nowrap; }
+        .color-picker { -webkit-appearance: none; -moz-appearance: none; appearance: none; width: 24px; height: 24px; background-color: transparent; border: none; cursor: pointer; padding: 0; position: relative; vertical-align: middle; }
+        .color-picker::-webkit-color-swatch-wrapper { padding: 0; }
+        .color-picker::-webkit-color-swatch { border: 1px solid var(--border-color); border-radius: 3px; }
+        .color-picker::-moz-color-swatch-wrapper { padding: 0; }
+        .color-picker::-moz-color-swatch { border: 1px solid var(--border-color); border-radius: 3px; }
 
-        .color-picker {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            width: 24px; /* Size of the color swatch */
-            height: 24px;
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-            position: relative; /* For custom indicator */
-            vertical-align: middle;
-        }
+        .toolbar-select { padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: white; font-size: 0.9rem; cursor: pointer; outline: none; transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .toolbar-select:focus { border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2); }
 
-        .color-picker::-webkit-color-swatch-wrapper {
-            padding: 0;
-        }
-        .color-picker::-webkit-color-swatch {
-            border: 1px solid var(--border-color);
-            border-radius: 3px;
-        }
-        .color-picker::-moz-color-swatch-wrapper {
-            padding: 0;
-        }
-        .color-picker::-moz-color-swatch {
-            border: 1px solid var(--border-color);
-            border-radius: 3px;
-        }
+        .editable-frame { flex: 1; width: 100%; border: 1px solid var(--border-color); border-radius: var(--border-radius); background-color: white; min-height: 200px; }
 
-        .toolbar-select {
-            padding: 0.5rem 0.75rem;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            background-color: white;
-            font-size: 0.9rem;
-            cursor: pointer;
-            outline: none;
-            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
+        .message-box { position: absolute; bottom: var(--spacing-unit); left: 50%; transform: translateX(-50%); background-color: #333; color: white; padding: 0.75rem 1.5rem; border-radius: 50px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); opacity: 0; visibility: hidden; transition: opacity 0.3s ease-out, visibility 0.3s ease-out; z-index: 100; white-space: nowrap; }
+        .message-box.show { opacity: 1; visibility: visible; }
 
-        .toolbar-select:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
-        }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
 
-        /* iFrame specific styles */
-        .editable-frame {
-            flex: 1;
-            width: 100%;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            background-color: white;
-            min-height: 200px; /* Ensure a minimum height for preview */
-        }
-
-        /* Message Box */
-        .message-box {
-            position: absolute;
-            bottom: var(--spacing-unit);
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #333;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 50px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
-            z-index: 100;
-            white-space: nowrap; /* Prevent message from wrapping too much */
-        }
-
-        .message-box.show {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        /* Accessibility: Visually hidden but available to screen readers */
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border-width: 0;
-        }
-
-        /* Modals */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
-        }
-
-        .modal.show {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .modal-content {
-            background-color: var(--bg-panel);
-            padding: 2rem;
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow-light);
-            width: 90%;
-            max-width: 500px;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .modal-content h3 {
-            margin-top: 0;
-            font-size: 1.3rem;
-            color: var(--primary-color);
-        }
-
-        .close-button {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            font-size: 1.8rem;
-            cursor: pointer;
-            color: #888;
-            transition: color 0.2s ease-in-out;
-        }
-
-        .close-button:hover {
-            color: var(--text-color);
-        }
-
-        .modal-input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-size: 1rem;
-            outline: none;
-            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-
-        .modal-input:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
-        }
-
-        .modal-button {
-            align-self: flex-end; /* Align button to the right */
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: calc(var(--border-radius) / 2);
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-
-        .modal-button.primary {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .modal-button.primary:hover {
-            background-color: #3A7CD0;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
-        }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease-out, visibility 0.3s ease-out; }
+        .modal.show { opacity: 1; visibility: visible; }
+        .modal-content { background-color: var(--bg-panel); padding: 2rem; border-radius: var(--border-radius); box-shadow: var(--shadow-light); width: 90%; max-width: 500px; position: relative; display: flex; flex-direction: column; gap: 1rem; }
+        .modal-content h3 { margin-top: 0; font-size: 1.3rem; color: var(--primary-color); }
+        .close-button { position: absolute; top: 1rem; right: 1rem; font-size: 1.8rem; cursor: pointer; color: #888; transition: color 0.2s ease-in-out; }
+        .close-button:hover { color: var(--text-color); }
+        .modal-input { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1rem; outline: none; transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .modal-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2); }
+        .modal-button { align-self: flex-end; padding: 0.75rem 1.5rem; border: none; border-radius: calc(var(--border-radius) / 2); font-size: 1rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .modal-button.primary { background-color: var(--primary-color); color: white; }
+        .modal-button.primary:hover { background-color: #3A7CD0; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3); }
     </style>
 </head>
 <body>
     <div id="app-container">
-        <!-- Code Editor Panel -->
-        <div class="panel code-editor-panel">
+        <!-- 
+            Code Editor Panel
+            Added id="code-panel" for Split.js to target.
+        -->
+        <div id="code-panel" class="panel code-editor-panel">
             <h2 class="panel-title">HTML Source Code</h2>
             <textarea
                 id="htmlCode"
                 class="code-textarea"
                 placeholder="Paste your HTML code here..."
-            >&lt;h1&gt;Welcome to the WYSIWYG Editor!&lt;/h1&gt;
-&lt;p&gt;This is a &lt;strong&gt;powerful&lt;/strong&gt; and &lt;em&gt;intuitive&lt;/em&gt; editor. Try editing the text directly in the preview.&lt;/p&gt;
-&lt;ul&gt;
-    &lt;li&gt;Item 1&lt;/li&gt;
-    &lt;li&gt;Item 2&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;You can also insert &lt;a href=&quot;https://google.com&quot; target=&quot;_blank&quot;&gt;links&lt;/a&gt; and &lt;span style=&quot;background-color: yellow;&quot;&gt;highlight&lt;/span&gt; text.&lt;/p&gt;
-&lt;img src=&quot;https://placehold.co/400x200/lightgreen/white?text=Editable+Image&quot; alt=&quot;Placeholder Image&quot; style=&quot;width: 100%; max-width: 400px; height: auto; display: block; margin: 1rem 0;&quot;&gt;</textarea>
+            ><h1>Welcome to the WYSIWYG Editor!</h1>
+<p>This is a <strong>powerful</strong> and <em>intuitive</em> editor. Try editing the text directly in the preview.</p>
+<ul>
+    <li>Item 1</li>
+    <li>Item 2</li>
+</ul>
+<p>You can also insert <a href="https://google.com" target="_blank">links</a> and <span style="background-color: yellow;">highlight</span> text.</p>
+<img src="https://placehold.co/400x200/lightgreen/white?text=Editable+Image" alt="Placeholder Image" style="width: 100%; max-width: 400px; height: auto; display: block; margin: 1rem 0;"></textarea>
             <div class="panel-actions">
                 <button id="renderButton" class="action-button primary">
                     <i class="fas fa-play"></i> Render HTML
@@ -449,11 +265,12 @@
             </div>
         </div>
 
-        <!-- Panel Resizing Divider -->
-        <div id="panel-divider"></div>
-
-        <!-- Live Preview Panel -->
-        <div class="panel preview-panel">
+        <!-- 
+            Live Preview Panel
+            Added id="preview-panel" for Split.js to target.
+            The old #panel-divider div has been removed as Split.js creates its own.
+        -->
+        <div id="preview-panel" class="panel preview-panel">
             <h2 class="panel-title">Live Preview (Editable)</h2>
             <div id="editorToolbar" class="editor-toolbar">
                 <button class="toolbar-button" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
@@ -477,7 +294,7 @@
                 </div>
                 <div class="color-picker-container">
                     <label for="divBgColorPicker" class="sr-only">Div Background Color</label>
-                    <input type="color" id="divBgColorPicker" class="color-picker" title="Block Background Color">
+                    <input type="color"id="divBgColorPicker" class="color-picker" title="Block Background Color">
                     <span class="color-label"><i class="fas fa-fill-drip"></i> Block Bg</span>
                 </div>
 
@@ -496,7 +313,6 @@
                     <option value="7">Largest</option>
                 </select>
 
-                <!-- New Font Selection Dropdown -->
                 <select id="fontSelect" class="toolbar-select" title="Font Family">
                     <option value="" disabled selected>Font Family</option>
                 </select>
@@ -512,10 +328,10 @@
         </div>
     </div>
 
-    <!-- Modals for Link and Image Insertion -->
+    <!-- Modals (unchanged) -->
     <div id="linkModal" class="modal">
         <div class="modal-content">
-            <span class="close-button">&times;</span>
+            <span class="close-button">×</span>
             <h3>Insert Hyperlink</h3>
             <label for="linkURL">URL:</label>
             <input type="url" id="linkURL" placeholder="https://example.com" class="modal-input">
@@ -527,7 +343,7 @@
 
     <div id="imageModal" class="modal">
         <div class="modal-content">
-            <span class="close-button">&times;</span>
+            <span class="close-button">×</span>
             <h3>Insert Image</h3>
             <label for="imageURL">Image URL:</label>
             <input type="url" id="imageURL" placeholder="https://example.com/image.jpg" class="modal-input">
@@ -546,29 +362,18 @@
             const messageBox = document.getElementById('messageBox');
             const editorToolbar = document.getElementById('editorToolbar');
 
-            // Toolbar buttons
-            const boldBtn = document.querySelector('[data-command="bold"]');
-            const italicBtn = document.querySelector('[data-command="italic"]');
-            const underlineBtn = document.querySelector('[data-command="underline"]');
-            const strikeThroughBtn = document.querySelector('[data-command="strikeThrough"]');
-            const superscriptBtn = document.querySelector('[data-command="superscript"]');
-            const subscriptBtn = document.querySelector('[data-command="subscript"]');
-            const unorderedListBtn = document.querySelector('[data-command="insertUnorderedList"]');
-            const orderedListBtn = document.querySelector('[data-command="insertOrderedList"]');
+            // Toolbar buttons and selects
             const fontColorPicker = document.getElementById('fontColorPicker');
             const fontBgColorPicker = document.getElementById('fontBgColorPicker');
-            const divBgColorPicker = document.getElementById('divBgColorPicker'); // For block background
+            const divBgColorPicker = document.getElementById('divBgColorPicker');
             const insertLinkBtn = document.getElementById('insertLinkBtn');
             const insertImageBtn = document.getElementById('insertImageBtn');
             const clearFormatBtn = document.getElementById('clearFormatBtn');
             const fontSizeSelect = document.getElementById('fontSizeSelect');
-            const fontSelect = document.getElementById('fontSelect'); // New font selection
+            const fontSelect = document.getElementById('fontSelect');
 
             // Panel resizing elements
             const appContainer = document.getElementById('app-container');
-            const panelDivider = document.getElementById('panel-divider');
-            const codeEditorPanel = document.querySelector('.code-editor-panel');
-            const previewPanel = document.querySelector('.preview-panel');
 
             // Modals
             const linkModal = document.getElementById('linkModal');
@@ -580,64 +385,26 @@
             const linkTextInput = document.getElementById('linkText');
             const imageURLInput = document.getElementById('imageURL');
 
-            let iframeDoc; // Reference to the iframe's document
-            let currentRange = null; // Store selection range for modal interactions
-            let isResizing = false; // Flag for panel resizing
+            let iframeDoc;
+            let currentRange = null;
 
-            // --- Font Data ---
             // List of diverse open-source fonts from Google Fonts
-            const googleFonts = [
-                "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Source Sans Pro", "Noto Sans",
-                "Poppins", "Raleway", "Ubuntu", "Merriweather", "Playfair Display", "Lora", "Crimson Text",
-                "IBM Plex Sans", "Inter", "Fira Sans", "Nunito", "Quicksand", "Work Sans", "Rubik",
-                "Bitter", "PT Sans", "Dosis", "Exo 2", "Cabin", "Titillium Web", "Josefin Sans",
-                "Varela Round", "Lobster", "Pacifico", "Great Vibes", "Dancing Script", "Indie Flower",
-                "Permanent Marker", "Amatic SC", "Shadows Into Light", "Bebas Neue", "Anton", "Righteous",
-                "Alfa Slab One", "Passion One", "Ultra", "Comfortaa", "Kanit", "Prompt", "Karla",
-                "Space Mono", "Inconsolata", "Cutive Mono", "Source Code Pro", "Fira Code", "Abel",
-                "Arvo", "Alegreya", "Cardo", "Cinzel", "Domine", "Gentium Book Basic", "Literata",
-                "Old Standard TT", "PT Serif", "Roboto Slab", "Slabo 27px", "Tangerine", "Merienda",
-                "Sacramento", "Satisfy", "Courgette", "Glegoo", "Questrial", "Rokkitt", "Spectral",
-                "IBM Plex Serif", "Barlow", "Commissioner", "Assistant", "Manrope", "Lexend Deca",
-                "Red Hat Display", "Recursive", "Chivo", "Archivo", "Heebo", "Hind Siliguri", "Mukta",
-                "Public Sans", "Spartan", "Syne", "Fraunces", "Epilogue", "Plus Jakarta Sans",
-                "Space Grotesk", "Outfit", "Readex Pro", "Lexend", "Familjen Grotesk", "Sono",
-                "Urbanist", "Bai Jamjuree", "Sen", "Sora", "Spline Sans", "Georama", "Goldman", "DM Sans",
-                "Chakra Petch", "VT323", "Press Start 2P", "Special Elite", "Creepster", "Metal Mania"
-            ];
+            const googleFonts = ["Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Source Sans Pro", "Noto Sans", "Poppins", "Raleway", "Ubuntu", "Merriweather", "Playfair Display", "Lora", "Crimson Text", "IBM Plex Sans", "Inter", "Fira Sans", "Nunito", "Quicksand", "Work Sans", "Rubik", "Bitter", "PT Sans", "Dosis", "Exo 2", "Cabin", "Titillium Web", "Josefin Sans", "Varela Round", "Lobster", "Pacifico", "Great Vibes", "Dancing Script", "Indie Flower", "Permanent Marker", "Amatic SC", "Shadows Into Light", "Bebas Neue", "Anton", "Righteous", "Alfa Slab One", "Passion One", "Ultra", "Comfortaa", "Kanit", "Prompt", "Karla", "Space Mono", "Inconsolata", "Cutive Mono", "Source Code Pro", "Fira Code", "Abel", "Arvo", "Alegreya", "Cardo", "Cinzel", "Domine", "Gentium Book Basic", "Literata", "Old Standard TT", "PT Serif", "Roboto Slab", "Slabo 27px", "Tangerine", "Merienda", "Sacramento", "Satisfy", "Courgette", "Glegoo", "Questrial", "Rokkitt", "Spectral", "IBM Plex Serif", "Barlow", "Commissioner", "Assistant", "Manrope", "Lexend Deca", "Red Hat Display", "Recursive", "Chivo", "Archivo", "Heebo", "Hind Siliguri", "Mukta", "Public Sans", "Spartan", "Syne", "Fraunces", "Epilogue", "Plus Jakarta Sans", "Space Grotesk", "Outfit", "Readex Pro", "Lexend", "Familjen Grotesk", "Sono", "Urbanist", "Bai Jamjuree", "Sen", "Sora", "Spline Sans", "Georama", "Goldman", "DM Sans", "Chakra Petch", "VT323", "Press Start 2P", "Special Elite", "Creepster", "Metal Mania"];
 
             // --- Utility Functions ---
-
-            /**
-             * Displays a temporary message to the user.
-             * @param {string} message - The message to display.
-             * @param {number} duration - How long the message should be visible in milliseconds.
-             */
             function showMessage(message, duration = 3000) {
                 messageBox.textContent = message;
                 messageBox.classList.add('show');
-                setTimeout(() => {
-                    messageBox.classList.remove('show');
-                }, duration);
+                setTimeout(() => { messageBox.classList.remove('show'); }, duration);
             }
 
-            /**
-             * Executes a document.execCommand on the iframe's content.
-             * @param {string} command - The command to execute (e.g., 'bold', 'insertUnorderedList').
-             * @param {string} [value=null] - The value for the command (e.g., color hex code, link URL).
-             */
             function executeCommand(command, value = null) {
-                if (!iframeDoc) {
-                    showMessage('Preview not loaded. Render HTML first.', 3000);
-                    return;
-                }
+                if (!iframeDoc) { showMessage('Preview not loaded. Render HTML first.', 3000); return; }
                 try {
-                    // Focus the iframe's content to ensure execCommand works on its document
                     previewFrame.contentWindow.focus();
                     iframeDoc.execCommand(command, false, value);
-                    // After command, sync the content back to the textarea (debounced)
                     syncFromPreviewDebounced();
-                    updateToolbarState(); // Update toolbar state after command
+                    updateToolbarState();
                     showMessage(`${command} applied!`, 1500);
                 } catch (error) {
                     console.error(`Error executing command '${command}':`, error);
@@ -645,49 +412,32 @@
                 }
             }
 
-            /**
-             * Opens a given modal.
-             * @param {HTMLElement} modalElement - The modal DOM element.
-             */
             function openModal(modalElement) {
                 modalElement.classList.add('show');
-                // Store current selection range when modal opens
                 if (iframeDoc && previewFrame.contentWindow.getSelection().rangeCount > 0) {
                     currentRange = previewFrame.contentWindow.getSelection().getRangeAt(0);
                 }
             }
 
-            /**
-             * Closes a given modal.
-             * @param {HTMLElement} modalElement - The modal DOM element.
-             */
             function closeModal(modalElement) {
                 modalElement.classList.remove('show');
-                // Clear input fields when closing
                 const inputs = modalElement.querySelectorAll('input[type="text"], input[type="url"]');
                 inputs.forEach(input => input.value = '');
-                currentRange = null; // Clear stored range
+                currentRange = null;
             }
 
-            /**
-             * Sets the active state of toolbar buttons based on selection.
-             * Uses queryCommandState and queryCommandValue.
-             */
             function updateToolbarState() {
                 if (!iframeDoc) return;
-
                 const selection = previewFrame.contentWindow.getSelection();
                 if (!selection || selection.rangeCount === 0) {
-                    // No selection, deactivate all relevant buttons and reset values
                     editorToolbar.querySelectorAll('.toolbar-button').forEach(btn => btn.classList.remove('active'));
                     fontColorPicker.value = '#000000';
-                    fontBgColorPicker.value = '#FFFFFF';
-                    divBgColorPicker.value = '#FFFFFF';
-                    fontSizeSelect.value = ''; // Reset font size selection
-                    fontSelect.value = ''; // Reset font family selection
+                    fontBgColorPicker.value = '#ffffff';
+                    divBgColorPicker.value = '#ffffff';
+                    fontSizeSelect.value = '';
+                    fontSelect.value = '';
                     return;
                 }
-
                 const buttons = editorToolbar.querySelectorAll('[data-command]');
                 buttons.forEach(button => {
                     const command = button.dataset.command;
@@ -697,187 +447,62 @@
                         } else {
                             button.classList.remove('active');
                         }
-                    } catch (e) {
-                        // Some commands might not support queryCommandState (e.g., foreColor)
-                        button.classList.remove('active');
-                    }
+                    } catch (e) { button.classList.remove('active'); }
                 });
 
-                // Update color pickers based on current selection
                 try {
-                    let foreColor = iframeDoc.queryCommandValue('foreColor');
-                    let backColor = iframeDoc.queryCommandValue('backColor');
-                    let highlightColor = iframeDoc.queryCommandValue('hiliteColor'); // for highlight
-
-                    // queryCommandValue returns RGB(A) or hex. Normalize to hex if possible.
                     const rgbToHex = (rgb) => {
-                        if (!rgb || rgb.includes('transparent')) return '#000000'; // Default black or white
-                        if (rgb.startsWith('#')) return rgb; // Already hex
+                        if (!rgb || rgb.includes('transparent')) return '#000000';
+                        if (rgb.startsWith('#')) return rgb;
                         const parts = rgb.match(/\d+/g);
                         if (!parts || parts.length < 3) return '#000000';
-                        return '#' + parts.slice(0, 3).map(x => {
-                            const hex = parseInt(x).toString(16);
-                            return hex.length === 1 ? '0' + hex : hex;
-                        }).join('');
+                        return '#' + parts.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
                     };
-
-                    fontColorPicker.value = rgbToHex(foreColor) || '#000000';
-                    fontBgColorPicker.value = rgbToHex(backColor || highlightColor) || '#FFFFFF'; // Prioritize backColor, then hiliteColor
-
-                    // For div background, check parent element. More complex, might require iterating parents.
-                    // For simplicity, we'll keep the input but its 'active' state is harder to determine with execCommand
-                } catch (e) {
-                    console.warn("Could not query command value for colors:", e);
-                }
-
-                // Update font size select
+                    fontColorPicker.value = rgbToHex(iframeDoc.queryCommandValue('foreColor')) || '#000000';
+                    fontBgColorPicker.value = rgbToHex(iframeDoc.queryCommandValue('backColor')) || '#ffffff';
+                } catch (e) { console.warn("Could not query command value for colors:", e); }
+                try { fontSizeSelect.value = iframeDoc.queryCommandValue('fontSize') || ''; } catch (e) { fontSizeSelect.value = ''; }
                 try {
-                    const fontSize = iframeDoc.queryCommandValue('fontSize');
-                    if (fontSize) {
-                        fontSizeSelect.value = fontSize;
-                    } else {
-                        fontSizeSelect.value = '';
-                    }
-                } catch (e) {
-                    console.warn("Could not query command value for font size:", e);
-                    fontSizeSelect.value = '';
-                }
-
-                // Update font family select
-                try {
-                    const fontName = iframeDoc.queryCommandValue('fontName');
-                    if (fontName) {
-                        // Normalize fontName to match options (e.g., remove quotes)
-                        const cleanFontName = fontName.replace(/"/g, '');
-                        if (Array.from(fontSelect.options).some(option => option.value === cleanFontName)) {
-                            fontSelect.value = cleanFontName;
-                        } else {
-                            fontSelect.value = ''; // Not in our list
-                        }
-                    } else {
-                        fontSelect.value = '';
-                    }
-                } catch (e) {
-                    console.warn("Could not query command value for font name:", e);
-                    fontSelect.value = '';
-                }
+                    const fontName = iframeDoc.queryCommandValue('fontName').replace(/"/g, '');
+                    fontSelect.value = Array.from(fontSelect.options).some(o => o.value === fontName) ? fontName : '';
+                } catch (e) { fontSelect.value = ''; }
             }
 
-
-            /**
-             * Debounces a function call.
-             * @param {Function} func - The function to debounce.
-             * @param {number} delay - The debounce delay in milliseconds.
-             */
             const debounce = (func, delay) => {
                 let timeoutId;
-                return function(...args) {
-                    clearTimeout(timeoutId);
-                    timeoutId = setTimeout(() => func.apply(this, args), delay);
-                };
+                return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => func.apply(this, args), delay); };
             };
-
-            // Debounced version of syncFromPreview
             const syncFromPreviewDebounced = debounce(syncFromPreview, 500);
 
-
             // --- Core Functionality ---
-
-            /**
-             * Renders the HTML from the textarea into the iframe.
-             * Also initializes the iframe's content for editing.
-             */
             function updatePreview() {
                 try {
                     const htmlContent = htmlCodeTextArea.value;
                     iframeDoc = previewFrame.contentWindow.document;
-
-                    // Construct the Google Fonts URL by encoding each font name
-                    const fontFamiliesParam = googleFonts.map(font => {
-                        // Replace spaces with '+' and add any specific weights/styles needed (e.g., :wght@400;700)
-                        return encodeURIComponent(font).replace(/%20/g, '+') + ':wght@400;700';
-                    }).join('&family=');
+                    const fontFamiliesParam = googleFonts.map(font => encodeURIComponent(font).replace(/%20/g, '+') + ':wght@400;700').join('&family=');
                     const googleFontsLink = `https://fonts.googleapis.com/css2?family=${fontFamiliesParam}&display=swap`;
-
-                    // Basic HTML structure for the iframe, including essential styles for predictable rendering
-                    // and dynamically loaded Google Fonts.
                     const iframeHTML = `
                         <!DOCTYPE html>
-                        <html>
-                        <head>
+                        <html><head>
                             <link href="${googleFontsLink}" rel="stylesheet">
                             <style>
-                                /* Basic reset and default styles for the iframe content */
-                                body {
-                                    margin: 0;
-                                    padding: 1rem;
-                                    box-sizing: border-box;
-                                    font-family: 'Inter', sans-serif; /* Default font */
-                                    line-height: 1.6;
-                                    word-wrap: break-word; /* Prevents long words from breaking layout */
-                                    min-height: calc(100% - 2rem); /* Ensure editable area has height */
-                                    outline: none; /* Remove default contenteditable outline */
-                                    background-color: white; /* Ensure white background inside iframe */
-                                }
-                                * {
-                                    box-sizing: border-box;
-                                }
-                                img {
-                                    max-width: 100%;
-                                    height: auto;
-                                    display: block;
-                                    margin: 0.5rem 0; /* Add some space around images */
-                                    cursor: pointer; /* Indicate images are interactable */
-                                }
-                                a {
-                                    color: #4A90E2; /* Primary color for links */
-                                    text-decoration: underline;
-                                }
-                                /* Basic reset for lists */
-                                ul, ol {
-                                    padding-left: 1.5rem;
-                                    margin-top: 0.5rem;
-                                    margin-bottom: 0.5rem;
-                                }
-                                /* Ensure paragraph spacing */
-                                p {
-                                    margin-bottom: 0.8rem;
-                                }
-                                p:last-child {
-                                    margin-bottom: 0;
-                                }
-
-                                /* Inject all selected Google Fonts with fallbacks */
-                                ${googleFonts.map(font => `
-                                    .font-${font.replace(/\s/g, '-')} {
-                                        font-family: '${font}', sans-serif;
-                                    }
-                                `).join('')}
+                                body { margin:0; padding:1rem; box-sizing:border-box; font-family:'Inter', sans-serif; line-height:1.6; word-wrap:break-word; min-height:calc(100% - 2rem); outline:none; background-color:white; }
+                                * { box-sizing: border-box; }
+                                img { max-width: 100%; height: auto; display: block; margin: 0.5rem 0; cursor: pointer; }
+                                a { color: #4A90E2; text-decoration: underline; }
+                                ul, ol { padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+                                p { margin-bottom: 0.8rem; }
+                                p:last-child { margin-bottom: 0; }
                             </style>
-                        </head>
-                        <body>
+                        </head><body>
                             ${htmlContent}
-                        </body>
-                        </html>
-                    `;
-
+                        </body></html>`;
                     iframeDoc.open();
                     iframeDoc.write(iframeHTML);
                     iframeDoc.close();
-
-                    // Set designMode to 'on' to make the content editable
                     iframeDoc.designMode = 'on';
-
-                    // Add input event listener to the iframe body for continuous sync and toolbar updates
-                    // Use 'input' for contenteditable to catch text changes.
-                    iframeDoc.body.addEventListener('input', () => {
-                        syncFromPreviewDebounced();
-                        updateToolbarState(); // Update toolbar state on every input
-                    });
-
-                    // Listen for selection changes in the iframe to update toolbar state
+                    iframeDoc.body.addEventListener('input', () => { syncFromPreviewDebounced(); updateToolbarState(); });
                     iframeDoc.addEventListener('selectionchange', updateToolbarState);
-
                     showMessage('HTML rendered successfully! You can now edit the preview directly.', 3000);
                 } catch (error) {
                     console.error('Error rendering HTML:', error);
@@ -885,17 +510,10 @@
                 }
             }
 
-            /**
-             * Syncs the HTML content from the iframe's body back to the textarea.
-             */
             function syncFromPreview() {
-                if (!iframeDoc) {
-                    showMessage('No preview loaded to sync from.', 3000);
-                    return;
-                }
+                if (!iframeDoc) { showMessage('No preview loaded to sync from.', 3000); return; }
                 try {
-                    const liveHtmlContent = iframeDoc.body.innerHTML;
-                    htmlCodeTextArea.value = liveHtmlContent;
+                    htmlCodeTextArea.value = iframeDoc.body.innerHTML;
                     showMessage('HTML synced from preview to source code.', 2000);
                 } catch (error) {
                     console.error('Error syncing HTML from preview:', error);
@@ -903,272 +521,130 @@
                 }
             }
 
-            /**
-             * Downloads the current HTML content from the textarea as an HTML file.
-             */
             function downloadHtml() {
                 try {
-                    const htmlContent = htmlCodeTextArea.value;
-                    const filename = 'my_editable_page.html';
-
-                    const blob = new Blob([htmlContent], { type: 'text/html' });
+                    const blob = new Blob([htmlCodeTextArea.value], { type: 'text/html' });
                     const a = document.createElement('a');
                     a.href = URL.createObjectURL(blob);
-                    a.download = filename;
-
+                    a.download = 'my_editable_page.html';
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(a.href);
-
-                    showMessage(`'${filename}' downloaded successfully!`, 3000);
+                    showMessage(`'my_editable_page.html' downloaded successfully!`, 3000);
                 } catch (error) {
                     console.error('Error downloading HTML:', error);
                     showMessage('Error downloading HTML. Check console for details.', 5000);
                 }
             }
 
-            // --- Panel Resizing Logic ---
-            let startX, startY, initialCodeWidth, initialPreviewWidth, initialCodeHeight, initialPreviewHeight;
+            // --- NEW RESIZING LOGIC USING SPLIT.JS ---
+            // This section replaces the old, buggy manual resizing logic.
 
-            panelDivider.addEventListener('mousedown', (e) => {
-                isResizing = true;
-                e.preventDefault(); // Prevent default drag behavior
+            let splitInstance = null;
+            const RESPONSIVE_BREAKPOINT = 1024; // in pixels
 
-                // Check media query for horizontal vs. vertical resize
-                const isHorizontalResize = window.matchMedia("(min-width: 1024px)").matches;
+            /**
+             * Initializes or re-initializes the Split.js instance based on the current viewport width.
+             * It intelligently switches between horizontal and vertical layouts.
+             */
+            function initializeSplitter() {
+                const isDesktop = window.innerWidth >= RESPONSIVE_BREAKPOINT;
+                const direction = isDesktop ? 'horizontal' : 'vertical';
+                
+                // Set the flex-direction on the container to match the split direction.
+                appContainer.style.flexDirection = isDesktop ? 'row' : 'column';
 
-                if (isHorizontalResize) {
-                    startX = e.clientX;
-                    initialCodeWidth = codeEditorPanel.offsetWidth;
-                    initialPreviewWidth = previewPanel.offsetWidth;
-                    panelDivider.style.cursor = 'ew-resize';
-                } else {
-                    startY = e.clientY;
-                    initialCodeHeight = codeEditorPanel.offsetHeight;
-                    initialPreviewHeight = previewPanel.offsetHeight;
-                    panelDivider.style.cursor = 'ns-resize';
+                // If an old instance exists, destroy it before creating a new one.
+                // This is crucial for responsive behavior.
+                if (splitInstance) {
+                    splitInstance.destroy();
                 }
 
-                // Add mousemove and mouseup listeners to the document
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-            });
-
-            function onMouseMove(e) {
-                if (!isResizing) return;
-
-                const isHorizontalResize = window.matchMedia("(min-width: 1024px)").matches;
-                const minPanelSize = 250; // pixels
-
-                if (isHorizontalResize) {
-                    const dx = e.clientX - startX;
-                    let newCodeWidth = initialCodeWidth + dx;
-                    let newPreviewWidth = initialPreviewWidth - dx;
-
-                    // Ensure minimum panel widths
-                    if (newCodeWidth < minPanelSize || newPreviewWidth < minPanelSize) {
-                        return; // Stop resizing if minimum size is breached
+                // Create a new Split.js instance with appropriate settings.
+                splitInstance = Split(['#code-panel', '#preview-panel'], {
+                    sizes: [50, 50],       // Initial size distribution (50% each)
+                    minSize: isDesktop ? 250 : 200, // Minimum size in pixels for panels
+                    gutterSize: 12,        // The width of the draggable gutter
+                    direction: direction,  // 'horizontal' or 'vertical'
+                    cursor: isDesktop ? 'ew-resize' : 'ns-resize', // Set appropriate cursor
+                    // The onDragEnd callback can be used for any logic after resizing.
+                    onDragEnd: (sizes) => {
+                        console.log('Resize ended. New sizes:', sizes);
                     }
-
-                    // Convert pixel widths to percentage for grid-template-columns
-                    const totalWidth = appContainer.offsetWidth - (2 * parseFloat(getComputedStyle(appContainer).paddingLeft));
-                    const dividerWidth = panelDivider.offsetWidth + (2 * parseFloat(getComputedStyle(panelDivider).marginLeft)); // Include margins
-                    const remainingWidth = totalWidth - dividerWidth;
-
-                    const codePercentage = (newCodeWidth / remainingWidth) * 100;
-                    const previewPercentage = (newPreviewWidth / remainingWidth) * 100;
-
-                    // Update grid template columns with calculated percentages
-                    appContainer.style.gridTemplateColumns = `${codePercentage}px ${dividerWidth}px ${previewPercentage}px`;
-                } else { // Vertical resize for smaller screens
-                    const dy = e.clientY - startY;
-                    let newCodeHeight = initialCodeHeight + dy;
-                    let newPreviewHeight = initialPreviewHeight - dy;
-
-                    // Ensure minimum panel heights
-                    if (newCodeHeight < minPanelSize || newPreviewHeight < minPanelSize) {
-                        return; // Stop resizing if minimum size is breached
-                    }
-
-                    // Update grid template rows with calculated heights (or percentages if needed)
-                    appContainer.style.gridTemplateRows = `${newCodeHeight}px 8px ${newPreviewHeight}px`;
-                }
-            }
-
-            function onMouseUp() {
-                isResizing = false;
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-                panelDivider.style.cursor = ''; // Reset cursor
-                // Re-evaluate grid-template-columns or rows to use fr units for better responsiveness after resize
-                const isHorizontalResize = window.matchMedia("(min-width: 1024px)").matches;
-                if (isHorizontalResize) {
-                    // Get current pixel widths
-                    const currentCodeWidth = codeEditorPanel.offsetWidth;
-                    const currentPreviewWidth = previewPanel.offsetWidth;
-                    const dividerWidth = panelDivider.offsetWidth + (2 * parseFloat(getComputedStyle(panelDivider).marginLeft));
-
-                    // Set grid template to use fr units based on current proportions
-                    appContainer.style.gridTemplateColumns = `${currentCodeWidth}px ${dividerWidth}px ${currentPreviewWidth}px`;
-                } else {
-                     const currentCodeHeight = codeEditorPanel.offsetHeight;
-                    const currentPreviewHeight = previewPanel.offsetHeight;
-                     appContainer.style.gridTemplateRows = `${currentCodeHeight}px 8px ${currentPreviewHeight}px`;
-                }
+                });
             }
 
             // --- Event Listeners ---
-
-            // Panel action buttons
             renderButton.addEventListener('click', updatePreview);
             syncButton.addEventListener('click', syncFromPreview);
             downloadButton.addEventListener('click', downloadHtml);
 
-            // Toolbar formatting buttons (using event delegation for simplicity and scalability)
             editorToolbar.addEventListener('click', (event) => {
                 const target = event.target.closest('.toolbar-button');
-                if (target) {
-                    const command = target.dataset.command;
-                    if (command) {
-                        executeCommand(command);
-                    }
-                }
+                if (target?.dataset.command) { executeCommand(target.dataset.command); }
             });
 
-            // Color pickers
-            fontColorPicker.addEventListener('change', (event) => {
-                executeCommand('foreColor', event.target.value);
-            });
-
-            fontBgColorPicker.addEventListener('change', (event) => {
-                // Use 'backColor' for highlight or background color.
-                executeCommand('backColor', event.target.value);
-            });
+            fontColorPicker.addEventListener('change', (e) => executeCommand('foreColor', e.target.value));
+            fontBgColorPicker.addEventListener('change', (e) => executeCommand('backColor', e.target.value));
 
             divBgColorPicker.addEventListener('change', (event) => {
-                // This command applies a background color to the currently selected block element (e.g., <p>, <div>).
-                // It's not standard execCommand for 'div background', but 'backColor' usually affects text background.
-                // To apply background to a block, we'd need more complex DOM manipulation.
                 if (iframeDoc && previewFrame.contentWindow.getSelection().rangeCount > 0) {
                     const selection = previewFrame.contentWindow.getSelection();
                     const range = selection.getRangeAt(0);
-                    const commonAncestor = range.commonAncestorContainer;
-
-                    // Find the closest block-level element
-                    let targetElement = commonAncestor.nodeType === 3 ? commonAncestor.parentNode : commonAncestor;
+                    let targetElement = range.commonAncestorContainer.nodeType === 3 ? range.commonAncestorContainer.parentNode : range.commonAncestorContainer;
                     while (targetElement && !['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'].includes(targetElement.tagName) && targetElement !== iframeDoc.body) {
                         targetElement = targetElement.parentNode;
                     }
-
                     if (targetElement && targetElement !== iframeDoc.body) {
                         targetElement.style.backgroundColor = event.target.value;
                         showMessage('Block background color applied.', 1500);
                         syncFromPreviewDebounced();
-                    } else {
-                        showMessage('No suitable block element selected to apply background.', 3000);
-                    }
+                    } else { showMessage('No suitable block element selected.', 3000); }
                 }
             });
-
-            // Font size select
-            fontSizeSelect.addEventListener('change', (event) => {
-                executeCommand('fontSize', event.target.value);
-            });
-
-            // Font family select (new)
-            fontSelect.addEventListener('change', (event) => {
-                const fontName = event.target.value;
-                executeCommand('fontName', fontName);
-            });
-
-            // Insert Link button
-            insertLinkBtn.addEventListener('click', () => {
-                openModal(linkModal);
-                linkURLInput.focus(); // Focus the URL input
-            });
-
+            
+            fontSizeSelect.addEventListener('change', (e) => executeCommand('fontSize', e.target.value));
+            fontSelect.addEventListener('change', (e) => executeCommand('fontName', e.target.value));
+            
+            insertLinkBtn.addEventListener('click', () => { openModal(linkModal); linkURLInput.focus(); });
             confirmLinkBtn.addEventListener('click', () => {
                 const url = linkURLInput.value;
-                let text = linkTextInput.value;
-
-                if (!url) {
-                    showMessage('Please enter a URL for the link.', 2000);
-                    return;
-                }
-
-                // If no text is provided, use the URL as text
-                if (!text) {
-                    text = url;
-                }
-
-                // Restore selection if a range was stored
+                if (!url) { showMessage('Please enter a URL.', 2000); return; }
                 if (currentRange) {
                     const selection = previewFrame.contentWindow.getSelection();
-                    selection.removeAllRanges();
-                    selection.addRange(currentRange);
+                    selection.removeAllRanges(); selection.addRange(currentRange);
                 }
-
-                // Insert the link
                 executeCommand('createLink', url);
                 showMessage('Link inserted.', 1500);
                 closeModal(linkModal);
             });
 
-            // Insert Image button
-            insertImageBtn.addEventListener('click', () => {
-                openModal(imageModal);
-                imageURLInput.focus(); // Focus the URL input
-            });
-
+            insertImageBtn.addEventListener('click', () => { openModal(imageModal); imageURLInput.focus(); });
             confirmImageBtn.addEventListener('click', () => {
                 const url = imageURLInput.value;
-                if (!url) {
-                    showMessage('Please enter an image URL.', 2000);
-                    return;
-                }
-
-                // Restore selection if a range was stored
+                if (!url) { showMessage('Please enter an image URL.', 2000); return; }
                 if (currentRange) {
                     const selection = previewFrame.contentWindow.getSelection();
-                    selection.removeAllRanges();
-                    selection.addRange(currentRange);
+                    selection.removeAllRanges(); selection.addRange(currentRange);
                 }
-
-                // Insert the image
                 executeCommand('insertImage', url);
                 showMessage('Image inserted.', 1500);
                 closeModal(imageModal);
             });
-
-            // Clear Formatting button
-            clearFormatBtn.addEventListener('click', () => {
-                executeCommand('removeFormat');
-                showMessage('Formatting cleared.', 1500);
+            
+            clearFormatBtn.addEventListener('click', () => { executeCommand('removeFormat'); showMessage('Formatting cleared.', 1500); });
+            
+            closeButtons.forEach(button => button.addEventListener('click', (e) => closeModal(e.target.closest('.modal'))));
+            window.addEventListener('click', (e) => {
+                if (e.target === linkModal) closeModal(linkModal);
+                if (e.target === imageModal) closeModal(imageModal);
             });
 
-            // Close buttons for modals
-            closeButtons.forEach(button => {
-                button.addEventListener('click', (event) => {
-                    closeModal(event.target.closest('.modal'));
-                });
-            });
-
-            // Close modals on outside click
-            window.addEventListener('click', (event) => {
-                if (event.target === linkModal) {
-                    closeModal(linkModal);
-                }
-                if (event.target === imageModal) {
-                    closeModal(imageModal);
-                }
-            });
+            // Re-initialize the splitter on window resize (debounced for performance)
+            window.addEventListener('resize', debounce(initializeSplitter, 250));
 
             // --- Initial Setup ---
-
-            /**
-             * Populates the font selection dropdown with available Google Fonts.
-             */
             function populateFontSelect() {
                 googleFonts.sort().forEach(font => {
                     const option = document.createElement('option');
@@ -1178,9 +654,9 @@
                 });
             }
 
-            // Initial render when the page loads with the default content
             populateFontSelect();
             updatePreview();
+            initializeSplitter(); // Initial call to set up the resizable panels
         });
     </script>
 </body>
