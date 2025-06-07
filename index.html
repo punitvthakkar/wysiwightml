@@ -48,7 +48,6 @@
             position: relative;
         }
         
-        /* NEW: Wrapper to make the toolbar scrollable on mobile */
         .toolbar-scroll-wrapper {
             overflow-x: hidden;
         }
@@ -162,25 +161,25 @@
             padding-bottom: 0;
             border-bottom: none;
             margin-bottom: 0;
-            justify-content: flex-start; /* Changed to flex-start for better alignment */
+            justify-content: flex-start;
             align-items: center;
         }
 
         .toolbar-button {
             background-color: transparent;
-            border: 1px solid transparent; /* Make border transparent by default */
+            border: 1px solid transparent;
             border-radius: 4px;
             padding: 0.6rem 0.8rem;
             font-size: 1.1rem;
             cursor: pointer;
             transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.2s ease-in-out;
-            color: var(--text-muted); /* MODIFIED: Softened default color */
+            color: var(--text-muted);
         }
         
         .toolbar-button:hover,
         .toolbar-button:focus {
             background-color: var(--bg-light);
-            color: var(--primary-color); /* MODIFIED: Change color on hover */
+            color: var(--primary-color);
             outline: none;
         }
 
@@ -191,14 +190,14 @@
         }
 
         .color-picker-container { display: flex; align-items: center; gap: 0.3rem; position: relative; padding: 0.3rem 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; }
-        .color-picker-container .color-label { font-size: 0.9rem; white-space: nowrap; color: var(--text-muted); /* MODIFIED: Softened label color */ }
+        .color-picker-container .color-label { font-size: 0.9rem; white-space: nowrap; color: var(--text-muted); }
         .color-picker { -webkit-appearance: none; -moz-appearance: none; appearance: none; width: 24px; height: 24px; background-color: transparent; border: none; cursor: pointer; padding: 0; position: relative; vertical-align: middle; }
         .color-picker::-webkit-color-swatch-wrapper { padding: 0; }
         .color-picker::-webkit-color-swatch { border: 1px solid var(--border-color); border-radius: 3px; }
         .color-picker::-moz-color-swatch-wrapper { padding: 0; }
         .color-picker::-moz-color-swatch { border: 1px solid var(--border-color); border-radius: 3px; }
 
-        .toolbar-select { padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: white; font-size: 0.9rem; cursor: pointer; outline: none; transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; color: var(--text-muted); /* MODIFIED: Softened select color */}
+        .toolbar-select { padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: white; font-size: 0.9rem; cursor: pointer; outline: none; transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; color: var(--text-muted); }
         .toolbar-select:focus { border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2); }
 
         .editable-frame { flex: 1; width: 100%; border: 1px solid var(--border-color); border-radius: var(--border-radius); background-color: white; min-height: 200px; }
@@ -208,7 +207,7 @@
 
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
 
-        /* NEW: Custom Font Dropdown Styles */
+        /* Custom Font Dropdown Styles */
         .custom-select-wrapper { position: relative; }
         .custom-select-trigger {
             padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: white; font-size: 0.9rem; cursor: pointer; outline: none;
@@ -238,7 +237,7 @@
             font-family: 'Font Awesome 6 Free'; font-weight: 900; margin-left: 1rem; color: var(--primary-color);
         }
 
-        /* --- Modal Styles (Unchanged) --- */
+        /* Modal Styles */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease-out, visibility 0.3s ease-out; }
         .modal.show { opacity: 1; visibility: visible; }
         .modal-content { background-color: var(--bg-panel); padding: 2rem; border-radius: var(--border-radius); box-shadow: var(--shadow-light); width: 90%; max-width: 500px; position: relative; display: flex; flex-direction: column; gap: 1rem; }
@@ -252,7 +251,7 @@
         .modal-button.primary:hover { background-color: #3A7CD0; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3); }
 
         .mobile-toggle-container {
-            display: none; /* Hidden by default */
+            display: none;
             justify-content: center;
             gap: 0;
             padding: 0 var(--spacing-unit) var(--spacing-unit);
@@ -266,25 +265,24 @@
 
         @media (max-width: 1023px) {
             body {
-                overflow-y: auto; /* Allow vertical scroll on mobile */
-                height: auto; /* Allow body to grow */
+                overflow-y: auto;
+                height: auto;
             }
             .global-header {
                 padding: calc(var(--spacing-unit) * 0.5);
             }
-            /* MODIFIED: Toolbar scrolling styles */
             .toolbar-scroll-wrapper {
                 overflow-x: auto;
-                -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-                scrollbar-width: none; /* Hide scrollbar on Firefox */
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
             }
             .toolbar-scroll-wrapper::-webkit-scrollbar {
-                display: none; /* Hide scrollbar on Chrome/Safari */
+                display: none;
             }
             .editor-toolbar {
-                flex-wrap: nowrap; /* CRITICAL: Prevents wrapping */
-                padding-bottom: 8px; /* Give space for content below even without scrollbar */
-                margin-bottom: -8px; /* Counteract padding to avoid extra space */
+                flex-wrap: nowrap;
+                padding-bottom: 8px;
+                margin-bottom: -8px;
             }
             #app-container {
                 flex-direction: column;
@@ -306,7 +304,6 @@
 <body>
 
     <header class="global-header">
-        <!-- MODIFIED: Wrapped toolbar in a scroll container for mobile -->
         <div class="toolbar-scroll-wrapper">
             <div id="editorToolbar" class="editor-toolbar">
                 <button class="toolbar-button" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
@@ -349,13 +346,13 @@
                     <option value="7">Largest</option>
                 </select>
     
-                <!-- MODIFIED: Replaced select with a custom dropdown for font previews -->
                 <div id="fontFamilySelectWrapper" class="custom-select-wrapper" title="Font Family">
                     <button type="button" id="fontFamilyTrigger" class="custom-select-trigger" aria-haspopup="listbox" aria-expanded="false">
                         <span>Font Family</span>
                         <i class="fas fa-chevron-down"></i>
                     </button>
-                    <div id="fontFamilyOptions" class="custom-select-options" role="listbox" style="display: none;">
+                    <!-- CORRECTED: Removed inline style="display: none;" -->
+                    <div id="fontFamilyOptions" class="custom-select-options" role="listbox">
                         <!-- JS populates this -->
                     </div>
                 </div>
@@ -414,7 +411,7 @@
 
     <div id="messageBox" class="message-box"></div>
 
-    <!-- Modals (Unchanged) -->
+    <!-- Modals -->
     <div id="linkModal" class="modal">
         <div class="modal-content">
             <span class="close-button">×</span>
@@ -446,11 +443,8 @@
             const downloadButton = document.getElementById('downloadButton');
             const messageBox = document.getElementById('messageBox');
             const editorToolbar = document.getElementById('editorToolbar');
-
             const uploadHtmlButton = document.getElementById('uploadHtmlButton');
             const htmlFileInput = document.getElementById('htmlFileInput');
-
-            // Toolbar buttons and selects
             const fontColorPicker = document.getElementById('fontColorPicker');
             const fontBgColorPicker = document.getElementById('fontBgColorPicker');
             const divBgColorPicker = document.getElementById('divBgColorPicker');
@@ -458,19 +452,13 @@
             const insertImageBtn = document.getElementById('insertImageBtn');
             const clearFormatBtn = document.getElementById('clearFormatBtn');
             const fontSizeSelect = document.getElementById('fontSizeSelect');
-            
-            // MODIFIED: Custom Font Dropdown Elements
             const fontFamilySelectWrapper = document.getElementById('fontFamilySelectWrapper');
             const fontFamilyTrigger = document.getElementById('fontFamilyTrigger');
             const fontFamilyOptions = document.getElementById('fontFamilyOptions');
-
-            // Layout & Panel elements
             const appContainer = document.getElementById('app-container');
             const codePanel = document.getElementById('code-panel');
             const previewPanel = document.getElementById('preview-panel');
             const mobileViewToggle = document.getElementById('mobileViewToggle');
-
-            // Modals
             const linkModal = document.getElementById('linkModal');
             const imageModal = document.getElementById('imageModal');
             const closeButtons = document.querySelectorAll('.modal .close-button');
@@ -486,8 +474,6 @@
             let splitInstance = null;
             const RESPONSIVE_BREAKPOINT = 1024;
             let activeEditor = 'preview';
-            
-            // Shortened list for quicker demo loading; can be expanded.
             const googleFonts = ["Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Poppins", "Raleway", "Merriweather", "Playfair Display", "Inter", "Fira Sans", "Nunito", "Lobster", "Pacifico", "Dancing Script", "Amatic SC", "Bebas Neue", "Anton", "Comfortaa", "Space Mono", "Fira Code", "Arvo", "Alegreya", "Bai Jamjuree", "DM Sans", "Epilogue"];
 
             // --- Utility Functions ---
@@ -513,10 +499,7 @@
                         syncFromPreviewDebounced();
                         updateToolbarState();
                         showMessage(`${command} applied!`, 1500);
-                    } catch (error) {
-                        console.error(`Error executing command '${command}':`, error);
-                        showMessage(`Error applying ${command}.`, 3000);
-                    }
+                    } catch (error) { console.error(`Error executing command '${command}':`, error); showMessage(`Error applying ${command}.`, 3000); }
                 } else if (activeEditor === 'code') {
                     applyTagToTextarea(command);
                 }
@@ -525,7 +508,7 @@
             function applyTagToTextarea(command) {
                 const tagMap = {'bold': 'strong', 'italic': 'em', 'underline': 'u', 'strikeThrough': 's'};
                 const tag = tagMap[command];
-                if (!tag) { showMessage(`Command '${command}' not supported for code editor.`, 2000); return; }
+                if (!tag) { showMessage(`Command '${command}' not supported.`, 2000); return; }
                 const start = htmlCodeTextArea.selectionStart, end = htmlCodeTextArea.selectionEnd;
                 if (start === end) { showMessage('Please select text to format.', 2500); return; }
                 const selectedText = htmlCodeTextArea.value.substring(start, end);
@@ -556,13 +539,11 @@
                 const selection = previewFrame.contentWindow.getSelection();
                 if (!selection || selection.rangeCount === 0) return;
                 
-                // Update basic buttons
                 editorToolbar.querySelectorAll('[data-command]').forEach(button => {
                     const command = button.dataset.command;
                     try { button.classList.toggle('active', iframeDoc.queryCommandState(command)); } catch (e) { button.classList.remove('active'); }
                 });
 
-                // Update color pickers
                 try {
                     const rgbToHex = (rgb) => {
                         if (!rgb || rgb.includes('transparent')) return '#000000';
@@ -574,11 +555,7 @@
                     fontColorPicker.value = rgbToHex(iframeDoc.queryCommandValue('foreColor')) || '#000000';
                     fontBgColorPicker.value = rgbToHex(iframeDoc.queryCommandValue('backColor')) || '#ffffff';
                 } catch (e) {}
-
-                // Update selects
                 try { fontSizeSelect.value = iframeDoc.queryCommandValue('fontSize') || ''; } catch (e) { fontSizeSelect.value = ''; }
-                
-                // MODIFIED: Update custom font dropdown
                 try {
                     const fontName = iframeDoc.queryCommandValue('fontName').replace(/["']/g, '');
                     updateFontFamilySelection(fontName);
@@ -591,26 +568,20 @@
                     iframeDoc = previewFrame.contentWindow.document;
                     const fontLink = document.getElementById('googleFontsLink').cloneNode();
                     const iframeHTML = `<!DOCTYPE html><html><head>${fontLink.outerHTML}<style>body{margin:0;padding:1rem;box-sizing:border-box;font-family:'Inter',sans-serif;line-height:1.6;word-wrap:break-word;min-height:calc(100% - 2rem);outline:none;background-color:white;} *{box-sizing:border-box;} img{max-width:100%;height:auto;display:block;margin:0.5rem 0;cursor:pointer;} a{color:#4A90E2;text-decoration:underline;} ul,ol{padding-left:1.5rem;margin-top:0.5rem;margin-bottom:0.5rem;} p{margin-bottom:0.8rem;} p:last-child{margin-bottom:0;}</style></head><body>${htmlContent}</body></html>`;
-                    
                     iframeDoc.open();
                     iframeDoc.write(iframeHTML);
                     iframeDoc.close();
                     iframeDoc.designMode = 'on';
-
                     iframeDoc.body.addEventListener('input', () => { syncFromPreviewDebounced(); updateToolbarState(); });
                     iframeDoc.addEventListener('selectionchange', updateToolbarState);
                     iframeDoc.addEventListener('focus', () => { activeEditor = 'preview'; }, true);
-                    
                     showMessage('HTML rendered successfully!', 2000);
                 } catch (error) { console.error('Error rendering HTML:', error); showMessage('Error rendering HTML.', 5000); }
             }
 
             function syncFromPreview() {
                 if (!iframeDoc) { return; }
-                try {
-                    htmlCodeTextArea.value = iframeDoc.body.innerHTML;
-                    showMessage('HTML synced from preview.', 2000);
-                } catch (error) { console.error('Error syncing HTML:', error); showMessage('Error syncing HTML.', 5000); }
+                try { htmlCodeTextArea.value = iframeDoc.body.innerHTML; showMessage('HTML synced from preview.', 2000); } catch (error) { console.error('Error syncing HTML:', error); showMessage('Error syncing HTML.', 5000); }
             }
 
             function downloadHtml() {
@@ -625,40 +596,26 @@
                 } catch (error) { console.error('Error downloading HTML:', error); showMessage('Error downloading HTML.', 5000); }
             }
             
-            // --- File Upload Logic ---
             function handleFile(file) {
                 if (!file || !file.type.match('text/html')) { showMessage('Invalid file type.', 4000); return; }
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    htmlCodeTextArea.value = e.target.result;
-                    showMessage(`${file.name} loaded.`, 2500);
-                    updatePreview();
-                };
+                reader.onload = (e) => { htmlCodeTextArea.value = e.target.result; showMessage(`${file.name} loaded.`, 2500); updatePreview(); };
                 reader.onerror = () => { showMessage(`Error reading file.`, 4000); };
                 reader.readAsText(file);
             }
 
-            // --- Responsive Layout Engine ---
             function handleLayoutChange() {
                 const isDesktop = window.innerWidth >= RESPONSIVE_BREAKPOINT;
-
                 if (isDesktop) {
                     mobileViewToggle.style.display = 'none';
                     codePanel.classList.remove('mobile-hidden');
                     previewPanel.classList.remove('mobile-hidden');
                     appContainer.style.flexDirection = 'row';
-                    if (!splitInstance) {
-                        splitInstance = Split(['#code-panel', '#preview-panel'], {
-                            sizes: [50, 50], minSize: 300, gutterSize: 12, direction: 'horizontal', cursor: 'ew-resize'
-                        });
-                    }
+                    if (!splitInstance) { splitInstance = Split(['#code-panel', '#preview-panel'], { sizes: [50, 50], minSize: 300, gutterSize: 12, direction: 'horizontal', cursor: 'ew-resize' }); }
                 } else {
                     mobileViewToggle.style.display = 'flex';
                     appContainer.style.flexDirection = 'column';
-                    if (splitInstance) {
-                        splitInstance.destroy();
-                        splitInstance = null;
-                    }
+                    if (splitInstance) { splitInstance.destroy(); splitInstance = null; }
                     const currentActiveView = mobileViewToggle.querySelector('.toggle-button.active').dataset.view;
                     codePanel.classList.toggle('mobile-hidden', currentActiveView !== 'code');
                     previewPanel.classList.toggle('mobile-hidden', currentActiveView !== 'preview');
@@ -669,25 +626,20 @@
             renderButton.addEventListener('click', updatePreview);
             syncButton.addEventListener('click', syncFromPreview);
             downloadButton.addEventListener('click', downloadHtml);
-
             editorToolbar.addEventListener('click', (event) => {
                 const target = event.target.closest('.toolbar-button');
                 if (target?.dataset.command) { executeCommand(target.dataset.command); }
             });
-
             fontColorPicker.addEventListener('change', (e) => executeCommand('foreColor', e.target.value));
             fontBgColorPicker.addEventListener('change', (e) => executeCommand('backColor', e.target.value));
             fontSizeSelect.addEventListener('change', (e) => executeCommand('fontSize', e.target.value));
             clearFormatBtn.addEventListener('click', () => { executeCommand('removeFormat'); showMessage('Formatting cleared.', 1500); });
-            
             htmlCodeTextArea.addEventListener('focus', () => { activeEditor = 'code'; });
             uploadHtmlButton.addEventListener('click', () => htmlFileInput.click());
             htmlFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-
             codePanel.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); codePanel.classList.add('drag-over'); });
             codePanel.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); codePanel.classList.remove('drag-over'); });
             codePanel.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); codePanel.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
-
             mobileViewToggle.addEventListener('click', (e) => {
                 if (e.target.matches('.toggle-button')) {
                     const view = e.target.dataset.view;
@@ -697,7 +649,6 @@
                     previewPanel.classList.toggle('mobile-hidden', view !== 'preview');
                 }
             });
-
             insertLinkBtn.addEventListener('click', () => { openModal(linkModal); linkURLInput.focus(); });
             confirmLinkBtn.addEventListener('click', () => {
                 const url = linkURLInput.value; if (!url) { return; }
@@ -710,24 +661,21 @@
                 if (currentRange) { previewFrame.contentWindow.getSelection().addRange(currentRange); }
                 executeCommand('insertImage', url); closeModal(imageModal);
             });
-            
             closeButtons.forEach(btn => btn.addEventListener('click', (e) => closeModal(e.target.closest('.modal'))));
             window.addEventListener('click', (e) => {
                 if (e.target === linkModal) closeModal(linkModal);
                 if (e.target === imageModal) closeModal(imageModal);
-                // MODIFIED: Close font dropdown if clicking outside
+                // CORRECTED: Logic to close font dropdown
                 if (!fontFamilySelectWrapper.contains(e.target)) {
                     fontFamilySelectWrapper.classList.remove('open');
-                    fontFamilyOptions.style.display = 'none';
                     fontFamilyTrigger.setAttribute('aria-expanded', 'false');
                 }
             });
-            
             window.addEventListener('resize', debounce(handleLayoutChange, 250));
 
-            // --- MODIFIED: Custom Font Dropdown Logic ---
+            // --- Custom Font Dropdown Logic (CORRECTED) ---
             function populateFontFamilySelect() {
-                fontFamilyOptions.innerHTML = ''; // Clear existing
+                fontFamilyOptions.innerHTML = '';
                 googleFonts.sort().forEach(font => {
                     const option = document.createElement('div');
                     option.className = 'custom-select-option';
@@ -759,7 +707,6 @@
 
             fontFamilyTrigger.addEventListener('click', () => {
                 const isOpen = fontFamilySelectWrapper.classList.toggle('open');
-                fontFamilyOptions.style.display = isOpen ? 'block' : 'none';
                 fontFamilyTrigger.setAttribute('aria-expanded', isOpen);
             });
 
@@ -769,9 +716,7 @@
                     const font = target.dataset.value;
                     executeCommand('fontName', font);
                     updateFontFamilySelection(font);
-                    // Close dropdown after selection
                     fontFamilySelectWrapper.classList.remove('open');
-                    fontFamilyOptions.style.display = 'none';
                     fontFamilyTrigger.setAttribute('aria-expanded', 'false');
                 }
             });
