@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced WYSIWYG HTML Editor</title>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Split.js for Resizable Panels -->
+    <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
+    <style>
+        /* Variables for consistent styling */
+        :root {
+            --primary-color: #4A90E2;
+            --secondary-color: #8C6FF7;
+            --tertiary-color: #2ECC71;
+            --text-color: #333;
+            --bg-light: #F4F7F6;
+            --bg-panel: #FFFFFF;
+            --border-color: #E0E0E0;
+            --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --border-radius: 8px;
+            --spacing-unit: 1rem;
+            --font-family-body: 'Inter', sans-serif;
+            --font-family-code: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+            --header-height: auto; /* Let header size itself */
+        }
+
+        /* Base Styles */
+        body {
+            font-family: var(--font-family-body);
+            margin: 0;
+            overflow: hidden; /* Prevent body scroll */
+            background-color: var(--bg-light);
+            color: var(--text-color);
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* Full viewport height */
+        }
+
+        /*
+         * NEW: Global Header for Universal Toolbar
+         * This ensures the toolbar is always visible and positioned correctly.
+        */
+        .global-header {
+            padding: calc(var(--spacing-unit) * 0.75) var(--spacing-unit);
+            background-color: var(--bg-panel);
+            box-shadow: var(--shadow-light);
+            z-index: 10;
+            position: relative; /* Stacking context */
+        }
+
+        #app-container {
+            flex: 1;
+            display: flex;
+            padding: var(--spacing-unit);
+            gap: 0;
+            min-height: 0;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-panel);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-light);
+            padding: calc(var(--spacing-unit) * 1.5);
+            overflow: hidden;
+        }
+
+        .panel-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-unit);
+            text-align: center;
+            color: var(--primary-color);
+        }
+
+        /* Code Editor Panel */
+        .code-editor-panel {
+            /* NEW: Added transition for drag-and-drop feedback */
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        /* NEW: Drag-over state for file drop zone */
+        .code-editor-panel.drag-over {
+            border: 2px dashed var(--primary-color);
+            box-shadow: 0 0 15px rgba(74, 144, 226, 0.4);
+        }
+
+        .code-textarea {
+            flex: 1;
+            width: 100%;
+            padding: calc(var(--spacing-unit) * 0.75);
+            border: 1px solid var(--border-color);
+            border-radius: calc(var(--border-radius) / 2);
+            font-family: var(--font-family-code);
+            font-size: 0.95rem;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            margin-bottom: var(--spacing-unit);
+        }
+
+        .code-textarea:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+        }
+
+        .panel-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+
+        .action-button {
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: calc(var(--border-radius) / 2);
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.2s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1 1 auto;
+            min-width: 140px;
+            justify-content: center;
+        }
+        
+        .action-button i { font-size: 1.1em; }
+        .action-button.primary { background-color: var(--primary-color); color: white; }
+        .action-button.primary:hover { background-color: #3A7CD0; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3); }
+        .action-button.secondary { background-color: var(--secondary-color); color: white; }
+        .action-button.secondary:hover { background-color: #7258D6; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(140, 111, 247, 0.3); }
+        .action-button.tertiary { background-color: var(--tertiary-color); color: white; }
+        .action-button.tertiary:hover { background-color: #27AE60; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(46, 204, 113, 0.3); }
+
+        .gutter {
+            background-color: var(--border-color);
+            background-repeat: no-repeat;
+            background-position: 50%;
+            border-radius: var(--border-radius);
+            transition: background-color 0.2s ease;
+        }
+        .gutter:hover { background-color: var(--primary-color); }
+        .gutter.gutter-horizontal { cursor: ew-resize; margin: 0 var(--spacing-unit); }
+        .gutter.gutter-vertical { cursor: ns-resize; margin: var(--spacing-unit) 0; }
+
+        /* Preview Panel */
+        .preview-panel {
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Universal Editor Toolbar (styles adjusted for global header) */
+        .editor-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding-bottom: 0; /* No bottom padding needed here */
+            border-bottom: none; /* No border needed here */
+            margin-bottom: 0;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .toolbar-button {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 0.6rem 0.8rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.2s ease-in-out;
+            color: var(--text-color);
+        }
+
+        .toolbar-button:hover,
+        .toolbar-button:focus {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        .toolbar-button.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .color-picker-container { display: flex; align-items: center; gap: 0.3rem; position: relative; padding: 0.3rem 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; }
+        .color-picker-container .color-label { font-size: 0.9rem; white-space: nowrap; }
+        .color-picker { -webkit-appearance: none; -moz-appearance: none; appearance: none; width: 24px; height: 24px; background-color: transparent; border: none; cursor: pointer; padding: 0; position: relative; vertical-align: middle; }
+        .color-picker::-webkit-color-swatch-wrapper { padding: 0; }
+        .color-picker::-webkit-color-swatch { border: 1px solid var(--border-color); border-radius: 3px; }
+        .color-picker::-moz-color-swatch-wrapper { padding: 0; }
+        .color-picker::-moz-color-swatch { border: 1px solid var(--border-color); border-radius: 3px; }
+
+        .toolbar-select { padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: white; font-size: 0.9rem; cursor: pointer; outline: none; transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .toolbar-select:focus { border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2); }
+
+        .editable-frame { flex: 1; width: 100%; border: 1px solid var(--border-color); border-radius: var(--border-radius); background-color: white; min-height: 200px; }
+
+        .message-box { position: fixed; bottom: var(--spacing-unit); left: 50%; transform: translateX(-50%); background-color: #333; color: white; padding: 0.75rem 1.5rem; border-radius: 50px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); opacity: 0; visibility: hidden; transition: opacity 0.3s ease-out, visibility 0.3s ease-out; z-index: 100; white-space: nowrap; }
+        .message-box.show { opacity: 1; visibility: visible; }
+
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease-out, visibility 0.3s ease-out; }
+        .modal.show { opacity: 1; visibility: visible; }
+        .modal-content { background-color: var(--bg-panel); padding: 2rem; border-radius: var(--border-radius); box-shadow: var(--shadow-light); width: 90%; max-width: 500px; position: relative; display: flex; flex-direction: column; gap: 1rem; }
+        .modal-content h3 { margin-top: 0; font-size: 1.3rem; color: var(--primary-color); }
+        .close-button { position: absolute; top: 1rem; right: 1rem; font-size: 1.8rem; cursor: pointer; color: #888; transition: color 0.2s ease-in-out; }
+        .close-button:hover { color: var(--text-color); }
+        .modal-input { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1rem; outline: none; transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .modal-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2); }
+        .modal-button { align-self: flex-end; padding: 0.75rem 1.5rem; border: none; border-radius: calc(var(--border-radius) / 2); font-size: 1rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .modal-button.primary { background-color: var(--primary-color); color: white; }
+        .modal-button.primary:hover { background-color: #3A7CD0; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3); }
+
+        /*
+         * NEW: Mobile View Toggle Styles
+         * These controls are only shown on smaller screens.
+        */
+        .mobile-toggle-container {
+            display: none; /* Hidden by default */
+            justify-content: center;
+            gap: 0; /* Buttons will touch */
+            padding: 0 var(--spacing-unit) var(--spacing-unit);
+        }
+        .mobile-toggle-container .toggle-button {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            background-color: #fff;
+            color: var(--primary-color);
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .mobile-toggle-container .toggle-button:first-child {
+            border-radius: var(--border-radius) 0 0 var(--border-radius);
+        }
+        .mobile-toggle-container .toggle-button:last-child {
+            border-radius: 0 var(--border-radius) var(--border-radius) 0;
+            border-left-width: 0;
+        }
+        .mobile-toggle-container .toggle-button.active {
+            background-color: var(--primary-color);
+            color: #fff;
+        }
+
+        /*
+         * NEW: Responsive Media Query for Mobile Layout
+         * Breakpoint at 1023px.
+        */
+        @media (max-width: 1023px) {
+            body {
+                /* Allow vertical scrolling on mobile if content overflows */
+                overflow: auto; 
+            }
+            #app-container {
+                flex-direction: column;
+                padding-top: 0; /* Remove top padding as toggle container has bottom padding */
+            }
+            .panel {
+                /* Override Split.js inline styles to take full width */
+                width: 100% !important; 
+                flex-basis: auto !important;
+                height: auto;
+                min-height: 400px;
+                flex-grow: 1;
+            }
+            /* Hide the Split.js gutter on mobile */
+            .gutter {
+                display: none !important;
+            }
+            /* Show the mobile toggle controls */
+            .mobile-toggle-container {
+                display: flex;
+            }
+            /* Class to hide panels on mobile */
+            .panel.mobile-hidden {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NEW: Global Header for Universal Toolbar -->
+    <header class="global-header">
+        <div id="editorToolbar" class="editor-toolbar">
+            <button class="toolbar-button" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+            <button class="toolbar-button" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+            <button class="toolbar-button" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+            <button class="toolbar-button" data-command="strikeThrough" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
+            <button class="toolbar-button" data-command="superscript" title="Superscript"><i class="fas fa-superscript"></i></button>
+            <button class="toolbar-button" data-command="subscript" title="Subscript"><i class="fas fa-subscript"></i></button>
+            <button class="toolbar-button" data-command="insertUnorderedList" title="Bulleted List"><i class="fas fa-list-ul"></i></button>
+            <button class="toolbar-button" data-command="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+
+            <div class="color-picker-container">
+                <label for="fontColorPicker" class="sr-only">Font Color</label>
+                <input type="color" id="fontColorPicker" class="color-picker" title="Font Color">
+                <span class="color-label"><i class="fas fa-palette"></i> Text</span>
+            </div>
+            <div class="color-picker-container">
+                <label for="fontBgColorPicker" class="sr-only">Highlight Color</label>
+                <input type="color" id="fontBgColorPicker" class="color-picker" title="Highlight Color">
+                <span class="color-label"><i class="fas fa-highlighter"></i> Highlight</span>
+            </div>
+            <div class="color-picker-container">
+                <label for="divBgColorPicker" class="sr-only">Div Background Color</label>
+                <input type="color"id="divBgColorPicker" class="color-picker" title="Block Background Color">
+                <span class="color-label"><i class="fas fa-fill-drip"></i> Block Bg</span>
+            </div>
+
+            <button class="toolbar-button" id="insertLinkBtn" title="Insert Link"><i class="fas fa-link"></i></button>
+            <button class="toolbar-button" id="insertImageBtn" title="Insert Image"><i class="fas fa-image"></i></button>
+            <button class="toolbar-button" id="clearFormatBtn" title="Clear Formatting"><i class="fas fa-eraser"></i></button>
+
+            <select id="fontSizeSelect" class="toolbar-select" title="Font Size">
+                <option value="" disabled selected>Font Size</option>
+                <option value="1">Smallest</option>
+                <option value="2">Smaller</option>
+                <option value="3">Normal</option>
+                <option value="4">Large</option>
+                <option value="5">Larger</option>
+                <option value="6">Huge</option>
+                <option value="7">Largest</option>
+            </select>
+
+            <select id="fontSelect" class="toolbar-select" title="Font Family">
+                <option value="" disabled selected>Font Family</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- NEW: Mobile View Toggle Buttons -->
+    <div class="mobile-toggle-container" id="mobileViewToggle">
+        <button class="toggle-button active" data-view="code">Code</button>
+        <button class="toggle-button" data-view="preview">Preview</button>
+    </div>
+
+    <div id="app-container">
+        <!-- Code Editor Panel -->
+        <div id="code-panel" class="panel code-editor-panel">
+            <h2 class="panel-title">HTML Source Code</h2>
+            <textarea
+                id="htmlCode"
+                class="code-textarea"
+                placeholder="Paste your HTML code here, or drop an .html file."
+            ><h1>Welcome to the WYSIWYG Editor!</h1>
+<p>This is a <strong>powerful</strong> and <em>intuitive</em> editor. Try editing the text directly in the preview.</p>
+<ul>
+    <li>Item 1</li>
+    <li>Item 2</li>
+</ul>
+<p>You can also insert <a href="https://google.com" target="_blank">links</a> and <span style="background-color: yellow;">highlight</span> text.</p>
+<img src="https://placehold.co/400x200/lightgreen/white?text=Editable+Image" alt="Placeholder Image" style="width: 100%; max-width: 400px; height: auto; display: block; margin: 1rem 0;"></textarea>
+            <div class="panel-actions">
+                <!-- NEW: Upload HTML Button and hidden file input -->
+                <button id="uploadHtmlButton" class="action-button primary">
+                    <i class="fas fa-upload"></i> Upload HTML
+                </button>
+                <input type="file" id="htmlFileInput" accept=".html,.htm" class="sr-only">
+
+                <button id="renderButton" class="action-button primary">
+                    <i class="fas fa-play"></i> Render HTML
+                </button>
+                <button id="syncButton" class="action-button secondary">
+                    <i class="fas fa-sync-alt"></i> Sync from Preview
+                </button>
+                <button id="downloadButton" class="action-button tertiary">
+                    <i class="fas fa-download"></i> Download HTML
+                </button>
+            </div>
+        </div>
+
+        <!-- Live Preview Panel -->
+        <div id="preview-panel" class="panel preview-panel">
+            <h2 class="panel-title">Live Preview (Editable)</h2>
+            <iframe
+                id="previewFrame"
+                class="editable-frame"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-modals allow-popups"
+            ></iframe>
+        </div>
+    </div>
+
+    <!-- The message box now uses position:fixed to be independent of panel scrolling -->
+    <div id="messageBox" class="message-box"></div>
+
+    <!-- Modals (unchanged) -->
+    <div id="linkModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">×</span>
+            <h3>Insert Hyperlink</h3>
+            <label for="linkURL">URL:</label>
+            <input type="url" id="linkURL" placeholder="https://example.com" class="modal-input">
+            <label for="linkText">Text to display:</label>
+            <input type="text" id="linkText" placeholder="Click here" class="modal-input">
+            <button id="confirmLinkBtn" class="modal-button primary">Insert Link</button>
+        </div>
+    </div>
+    <div id="imageModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">×</span>
+            <h3>Insert Image</h3>
+            <label for="imageURL">Image URL:</label>
+            <input type="url" id="imageURL" placeholder="https://example.com/image.jpg" class="modal-input">
+            <button id="confirmImageBtn" class="modal-button primary">Insert Image</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Element References ---
+            const htmlCodeTextArea = document.getElementById('htmlCode');
+            const previewFrame = document.getElementById('previewFrame');
+            const renderButton = document.getElementById('renderButton');
+            const syncButton = document.getElementById('syncButton');
+            const downloadButton = document.getElementById('downloadButton');
+            const messageBox = document.getElementById('messageBox');
+            const editorToolbar = document.getElementById('editorToolbar');
+
+            // NEW: File Upload elements
+            const uploadHtmlButton = document.getElementById('uploadHtmlButton');
+            const htmlFileInput = document.getElementById('htmlFileInput');
+
+            // Toolbar buttons and selects
+            const fontColorPicker = document.getElementById('fontColorPicker');
+            const fontBgColorPicker = document.getElementById('fontBgColorPicker');
+            const divBgColorPicker = document.getElementById('divBgColorPicker');
+            const insertLinkBtn = document.getElementById('insertLinkBtn');
+            const insertImageBtn = document.getElementById('insertImageBtn');
+            const clearFormatBtn = document.getElementById('clearFormatBtn');
+            const fontSizeSelect = document.getElementById('fontSizeSelect');
+            const fontSelect = document.getElementById('fontSelect');
+
+            // Layout & Panel elements
+            const appContainer = document.getElementById('app-container');
+            const codePanel = document.getElementById('code-panel');
+            const previewPanel = document.getElementById('preview-panel');
+            const mobileViewToggle = document.getElementById('mobileViewToggle');
+
+            // Modals
+            const linkModal = document.getElementById('linkModal');
+            const imageModal = document.getElementById('imageModal');
+            const closeButtons = document.querySelectorAll('.modal .close-button');
+            const confirmLinkBtn = document.getElementById('confirmLinkBtn');
+            const confirmImageBtn = document.getElementById('confirmImageBtn');
+            const linkURLInput = document.getElementById('linkURL');
+            const linkTextInput = document.getElementById('linkText');
+            const imageURLInput = document.getElementById('imageURL');
+            
+            // --- State Variables ---
+            let iframeDoc;
+            let currentRange = null;
+            let splitInstance = null;
+            const RESPONSIVE_BREAKPOINT = 1024; // in pixels
+            let activeEditor = 'preview'; // 'code' or 'preview'
+            
+            const googleFonts = ["Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Source Sans Pro", "Noto Sans", "Poppins", "Raleway", "Ubuntu", "Merriweather", "Playfair Display", "Lora", "Crimson Text", "IBM Plex Sans", "Inter", "Fira Sans", "Nunito", "Quicksand", "Work Sans", "Rubik", "Bitter", "PT Sans", "Dosis", "Exo 2", "Cabin", "Titillium Web", "Josefin Sans", "Varela Round", "Lobster", "Pacifico", "Great Vibes", "Dancing Script", "Indie Flower", "Permanent Marker", "Amatic SC", "Shadows Into Light", "Bebas Neue", "Anton", "Righteous", "Alfa Slab One", "Passion One", "Ultra", "Comfortaa", "Kanit", "Prompt", "Karla", "Space Mono", "Inconsolata", "Cutive Mono", "Source Code Pro", "Fira Code", "Abel", "Arvo", "Alegreya", "Cardo", "Cinzel", "Domine", "Gentium Book Basic", "Literata", "Old Standard TT", "PT Serif", "Roboto Slab", "Slabo 27px", "Tangerine", "Merienda", "Sacramento", "Satisfy", "Courgette", "Glegoo", "Questrial", "Rokkitt", "Spectral", "IBM Plex Serif", "Barlow", "Commissioner", "Assistant", "Manrope", "Lexend Deca", "Red Hat Display", "Recursive", "Chivo", "Archivo", "Heebo", "Hind Siliguri", "Mukta", "Public Sans", "Spartan", "Syne", "Fraunces", "Epilogue", "Plus Jakarta Sans", "Space Grotesk", "Outfit", "Readex Pro", "Lexend", "Familjen Grotesk", "Sono", "Urbanist", "Bai Jamjuree", "Sen", "Sora", "Spline Sans", "Georama", "Goldman", "DM Sans", "Chakra Petch", "VT323", "Press Start 2P", "Special Elite", "Creepster", "Metal Mania"];
+
+            // --- Utility Functions ---
+            const showMessage = (message, duration = 3000) => {
+                messageBox.textContent = message;
+                messageBox.classList.add('show');
+                setTimeout(() => { messageBox.classList.remove('show'); }, duration);
+            };
+
+            const debounce = (func, delay) => {
+                let timeoutId;
+                return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => func.apply(this, args), delay); };
+            };
+            const syncFromPreviewDebounced = debounce(syncFromPreview, 500);
+
+            // --- NEW: Universal Command Execution ---
+            /**
+             * Applies a formatting command to the currently active editor (either code or preview).
+             * @param {string} command - The command to execute (e.g., 'bold').
+             * @param {string|null} value - The value for the command, if any (e.g., a URL or color).
+             */
+            function executeCommand(command, value = null) {
+                if (activeEditor === 'preview') {
+                    if (!iframeDoc) { showMessage('Preview not loaded. Render HTML first.', 3000); return; }
+                    try {
+                        previewFrame.contentWindow.focus();
+                        iframeDoc.execCommand(command, false, value);
+                        syncFromPreviewDebounced();
+                        updateToolbarState();
+                        showMessage(`${command} applied!`, 1500);
+                    } catch (error) {
+                        console.error(`Error executing preview command '${command}':`, error);
+                        showMessage(`Error applying ${command}.`, 3000);
+                    }
+                } else if (activeEditor === 'code') {
+                    applyTagToTextarea(command);
+                }
+            }
+            
+            /**
+             * NEW: Wraps selected text in the HTML textarea with the appropriate tag.
+             * This function is a simplified way to apply formatting to the code editor.
+             * @param {string} command - The command to translate into a tag.
+             */
+            function applyTagToTextarea(command) {
+                const tagMap = {
+                    'bold': 'strong', 'italic': 'em', 'underline': 'u', 'strikeThrough': 's'
+                };
+                const tag = tagMap[command];
+                if (!tag) {
+                    showMessage(`Command '${command}' not supported for code editor.`, 2000);
+                    return;
+                }
+
+                const start = htmlCodeTextArea.selectionStart;
+                const end = htmlCodeTextArea.selectionEnd;
+                const selectedText = htmlCodeTextArea.value.substring(start, end);
+
+                if (start === end) {
+                    showMessage('Please select text in the code editor to format.', 2500);
+                    return;
+                }
+
+                const newText = `<${tag}>${selectedText}</${tag}>`;
+                htmlCodeTextArea.value = htmlCodeTextArea.value.substring(0, start) + newText + htmlCodeTextArea.value.substring(end);
+                
+                // Keep focus and update selection
+                htmlCodeTextArea.focus();
+                htmlCodeTextArea.setSelectionRange(start + tag.length + 2, end + tag.length + 2);
+
+                showMessage(`Applied <${tag}> tag.`, 1500);
+                // Automatically render after a manual code change
+                debounce(updatePreview, 750)();
+            }
+
+            // --- Modal & Toolbar Logic ---
+            function openModal(modalElement) {
+                modalElement.classList.add('show');
+                if (activeEditor === 'preview' && iframeDoc && previewFrame.contentWindow.getSelection().rangeCount > 0) {
+                    currentRange = previewFrame.contentWindow.getSelection().getRangeAt(0);
+                }
+            }
+            function closeModal(modalElement) {
+                modalElement.classList.remove('show');
+                modalElement.querySelectorAll('input').forEach(input => input.value = '');
+                currentRange = null;
+            }
+
+            function updateToolbarState() {
+                // Toolbar state is only updated based on the preview pane, as it's too complex
+                // to parse HTML in the code view on selection change without a full IDE library.
+                if (!iframeDoc || activeEditor !== 'preview') return;
+                
+                const selection = previewFrame.contentWindow.getSelection();
+                if (!selection || selection.rangeCount === 0) return;
+
+                const buttons = editorToolbar.querySelectorAll('[data-command]');
+                buttons.forEach(button => {
+                    const command = button.dataset.command;
+                    try {
+                        button.classList.toggle('active', iframeDoc.queryCommandState(command));
+                    } catch (e) { button.classList.remove('active'); }
+                });
+
+                try {
+                    const rgbToHex = (rgb) => {
+                        if (!rgb || rgb.includes('transparent')) return '#000000';
+                        if (rgb.startsWith('#')) return rgb;
+                        const parts = rgb.match(/\d+/g);
+                        if (!parts || parts.length < 3) return '#000000';
+                        return '#' + parts.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+                    };
+                    fontColorPicker.value = rgbToHex(iframeDoc.queryCommandValue('foreColor')) || '#000000';
+                    fontBgColorPicker.value = rgbToHex(iframeDoc.queryCommandValue('backColor')) || '#ffffff';
+                } catch (e) { /* silent fail */ }
+                try { fontSizeSelect.value = iframeDoc.queryCommandValue('fontSize') || ''; } catch (e) { fontSizeSelect.value = ''; }
+                try {
+                    const fontName = iframeDoc.queryCommandValue('fontName').replace(/"/g, '');
+                    fontSelect.value = Array.from(fontSelect.options).some(o => o.value === fontName) ? fontName : '';
+                } catch (e) { fontSelect.value = ''; }
+            }
+
+            // --- Core Editor Functionality ---
+            function updatePreview() {
+                try {
+                    const htmlContent = htmlCodeTextArea.value;
+                    iframeDoc = previewFrame.contentWindow.document;
+                    const fontFamiliesParam = googleFonts.map(font => encodeURIComponent(font).replace(/%20/g, '+') + ':wght@400;700').join('&family=');
+                    const googleFontsLink = `https://fonts.googleapis.com/css2?family=${fontFamiliesParam}&display=swap`;
+                    const iframeHTML = `<!DOCTYPE html><html><head><link href="${googleFontsLink}" rel="stylesheet"><style>body{margin:0;padding:1rem;box-sizing:border-box;font-family:'Inter',sans-serif;line-height:1.6;word-wrap:break-word;min-height:calc(100% - 2rem);outline:none;background-color:white;} *{box-sizing:border-box;} img{max-width:100%;height:auto;display:block;margin:0.5rem 0;cursor:pointer;} a{color:#4A90E2;text-decoration:underline;} ul,ol{padding-left:1.5rem;margin-top:0.5rem;margin-bottom:0.5rem;} p{margin-bottom:0.8rem;} p:last-child{margin-bottom:0;}</style></head><body>${htmlContent}</body></html>`;
+                    
+                    iframeDoc.open();
+                    iframeDoc.write(iframeHTML);
+                    iframeDoc.close();
+                    iframeDoc.designMode = 'on';
+
+                    // Re-attach listeners for sync and state updates
+                    iframeDoc.body.addEventListener('input', () => { syncFromPreviewDebounced(); updateToolbarState(); });
+                    iframeDoc.addEventListener('selectionchange', updateToolbarState);
+                    // NEW: Add focus listener to track active editor
+                    iframeDoc.addEventListener('focus', () => { activeEditor = 'preview'; }, true);
+                    
+                    showMessage('HTML rendered successfully!', 2000);
+                } catch (error) {
+                    console.error('Error rendering HTML:', error);
+                    showMessage('Error rendering HTML. Check console for details.', 5000);
+                }
+            }
+
+            function syncFromPreview() {
+                if (!iframeDoc) { showMessage('No preview loaded to sync from.', 3000); return; }
+                try {
+                    htmlCodeTextArea.value = iframeDoc.body.innerHTML;
+                    showMessage('HTML synced from preview.', 2000);
+                } catch (error) { console.error('Error syncing HTML:', error); showMessage('Error syncing HTML.', 5000); }
+            }
+
+            function downloadHtml() {
+                try {
+                    const blob = new Blob([htmlCodeTextArea.value], { type: 'text/html' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'my_editable_page.html';
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                    showMessage(`'my_editable_page.html' downloaded!`, 3000);
+                } catch (error) { console.error('Error downloading HTML:', error); showMessage('Error downloading HTML.', 5000); }
+            }
+            
+            // --- NEW: File Upload and Drag-and-Drop Logic ---
+            function handleFile(file) {
+                if (!file || !file.type.match('text/html')) {
+                    showMessage('Invalid file. Please select an .html file.', 4000);
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    htmlCodeTextArea.value = e.target.result;
+                    showMessage(`${file.name} loaded successfully.`, 2500);
+                    updatePreview(); // Immediately render the new content
+                };
+                reader.onerror = () => {
+                    showMessage(`Error reading file: ${file.name}`, 4000);
+                };
+                reader.readAsText(file);
+            }
+
+            // --- NEW: Responsive Layout Engine ---
+            /**
+             * Initializes, destroys, or reconfigures the layout based on viewport width.
+             * Manages the Split.js instance and the mobile view toggle.
+             */
+            function handleLayoutChange() {
+                const isDesktop = window.innerWidth >= RESPONSIVE_BREAKPOINT;
+
+                if (isDesktop) {
+                    // --- DESKTOP VIEW ---
+                    mobileViewToggle.style.display = 'none';
+                    codePanel.classList.remove('mobile-hidden');
+                    previewPanel.classList.remove('mobile-hidden');
+                    appContainer.style.flexDirection = 'row';
+
+                    // Initialize Split.js only if it doesn't exist
+                    if (!splitInstance) {
+                        splitInstance = Split(['#code-panel', '#preview-panel'], {
+                            sizes: [50, 50],
+                            minSize: 300,
+                            gutterSize: 12,
+                            direction: 'horizontal',
+                            cursor: 'ew-resize'
+                        });
+                        console.log('Split.js initialized for desktop view.');
+                    }
+                } else {
+                    // --- MOBILE VIEW ---
+                    mobileViewToggle.style.display = 'flex';
+                    appContainer.style.flexDirection = 'column';
+
+                    // Destroy Split.js instance if it exists
+                    if (splitInstance) {
+                        splitInstance.destroy();
+                        splitInstance = null;
+                        console.log('Split.js destroyed for mobile view.');
+                    }
+                    // Set default view (e.g., show code, hide preview)
+                    const currentActiveView = mobileViewToggle.querySelector('.toggle-button.active').dataset.view;
+                    codePanel.classList.toggle('mobile-hidden', currentActiveView !== 'code');
+                    previewPanel.classList.toggle('mobile-hidden', currentActiveView !== 'preview');
+                }
+            }
+            
+            // --- Event Listeners ---
+            renderButton.addEventListener('click', updatePreview);
+            syncButton.addEventListener('click', syncFromPreview);
+            downloadButton.addEventListener('click', downloadHtml);
+
+            // Universal Toolbar Listeners
+            editorToolbar.addEventListener('click', (event) => {
+                const target = event.target.closest('.toolbar-button');
+                if (target?.dataset.command) { executeCommand(target.dataset.command); }
+            });
+
+            fontColorPicker.addEventListener('change', (e) => executeCommand('foreColor', e.target.value));
+            fontBgColorPicker.addEventListener('change', (e) => executeCommand('backColor', e.target.value));
+            fontSizeSelect.addEventListener('change', (e) => executeCommand('fontSize', e.target.value));
+            fontSelect.addEventListener('change', (e) => executeCommand('fontName', e.target.value));
+            clearFormatBtn.addEventListener('click', () => { executeCommand('removeFormat'); showMessage('Formatting cleared.', 1500); });
+            
+            // Focus tracking to set the active editor
+            htmlCodeTextArea.addEventListener('focus', () => { activeEditor = 'code'; });
+
+            // File Upload Listeners
+            uploadHtmlButton.addEventListener('click', () => htmlFileInput.click());
+            htmlFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+            // Drag and Drop Listeners
+            codePanel.addEventListener('dragover', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                codePanel.classList.add('drag-over');
+            });
+            codePanel.addEventListener('dragleave', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                codePanel.classList.remove('drag-over');
+            });
+            codePanel.addEventListener('drop', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                codePanel.classList.remove('drag-over');
+                handleFile(e.dataTransfer.files[0]);
+            });
+
+            // Mobile Toggle Listener
+            mobileViewToggle.addEventListener('click', (e) => {
+                if (e.target.matches('.toggle-button')) {
+                    const view = e.target.dataset.view;
+                    mobileViewToggle.querySelector('.active').classList.remove('active');
+                    e.target.classList.add('active');
+                    codePanel.classList.toggle('mobile-hidden', view !== 'code');
+                    previewPanel.classList.toggle('mobile-hidden', view !== 'preview');
+                }
+            });
+
+            // Modal Listeners
+            insertLinkBtn.addEventListener('click', () => { openModal(linkModal); linkURLInput.focus(); });
+            confirmLinkBtn.addEventListener('click', () => {
+                const url = linkURLInput.value;
+                if (!url) { showMessage('Please enter a URL.', 2000); return; }
+                if (currentRange) {
+                    previewFrame.contentWindow.getSelection().addRange(currentRange);
+                }
+                executeCommand('createLink', url);
+                showMessage('Link inserted.', 1500);
+                closeModal(linkModal);
+            });
+            insertImageBtn.addEventListener('click', () => { openModal(imageModal); imageURLInput.focus(); });
+            confirmImageBtn.addEventListener('click', () => {
+                const url = imageURLInput.value;
+                if (!url) { showMessage('Please enter an image URL.', 2000); return; }
+                if (currentRange) {
+                    previewFrame.contentWindow.getSelection().addRange(currentRange);
+                }
+                executeCommand('insertImage', url);
+                showMessage('Image inserted.', 1500);
+                closeModal(imageModal);
+            });
+            
+            closeButtons.forEach(btn => btn.addEventListener('click', (e) => closeModal(e.target.closest('.modal'))));
+            window.addEventListener('click', (e) => {
+                if (e.target === linkModal) closeModal(linkModal);
+                if (e.target === imageModal) closeModal(imageModal);
+            });
+            
+            // Re-initialize the layout on window resize (debounced)
+            window.addEventListener('resize', debounce(handleLayoutChange, 250));
+
+            // --- Initial Setup ---
+            function populateFontSelect() {
+                googleFonts.sort().forEach(font => {
+                    const option = new Option(font, font);
+                    fontSelect.appendChild(option);
+                });
+            }
+
+            populateFontSelect();
+            updatePreview();
+            handleLayoutChange(); // Initial call to set up the correct layout
+        });
+    </script>
+</body>
+</html>
+
