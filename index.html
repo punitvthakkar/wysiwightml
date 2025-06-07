@@ -15,23 +15,22 @@
             --secondary-color: #8C6FF7;
             --tertiary-color: #2ECC71;
             --text-color: #333;
-            --text-muted: #6c757d; /* NEW: Muted color for less prominent text */
+            --text-muted: #6c757d;
             --bg-light: #F4F7F6;
             --bg-panel: #FFFFFF;
             --border-color: #E0E0E0;
             --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.08);
             --border-radius: 8px;
             --spacing-unit: 1rem;
-            --font-family-body: 'Inter', sans-serif; /* A sensible default */
+            --font-family-body: 'Inter', sans-serif;
             --font-family-code: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
-            --header-height: auto;
         }
 
         /* Base Styles */
         body {
             font-family: var(--font-family-body);
             margin: 0;
-            overflow: hidden; /* Prevent body scroll on desktop */
+            overflow: hidden;
             background-color: var(--bg-light);
             color: var(--text-color);
             line-height: 1.6;
@@ -78,7 +77,6 @@
             color: var(--primary-color);
         }
 
-        /* Code Editor Panel */
         .code-editor-panel {
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
@@ -149,11 +147,6 @@
         .gutter.gutter-horizontal { cursor: ew-resize; margin: 0 var(--spacing-unit); }
         .gutter.gutter-vertical { cursor: ns-resize; margin: var(--spacing-unit) 0; }
 
-        .preview-panel {
-            position: relative;
-            overflow: hidden;
-        }
-
         .editor-toolbar {
             display: flex;
             flex-wrap: wrap;
@@ -207,7 +200,6 @@
 
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
 
-        /* Custom Font Dropdown Styles */
         .custom-select-wrapper { position: relative; }
         .custom-select-trigger {
             padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: white; font-size: 0.9rem; cursor: pointer; outline: none;
@@ -233,11 +225,10 @@
         .custom-select-option:hover { background-color: var(--bg-light); }
         .custom-select-option.selected { background-color: #e9f2fe; color: var(--primary-color); font-weight: 500; }
         .custom-select-option.selected::after {
-            content: '\f00c'; /* FontAwesome check icon */
+            content: '\f00c';
             font-family: 'Font Awesome 6 Free'; font-weight: 900; margin-left: 1rem; color: var(--primary-color);
         }
 
-        /* Modal Styles */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease-out, visibility 0.3s ease-out; }
         .modal.show { opacity: 1; visibility: visible; }
         .modal-content { background-color: var(--bg-panel); padding: 2rem; border-radius: var(--border-radius); box-shadow: var(--shadow-light); width: 90%; max-width: 500px; position: relative; display: flex; flex-direction: column; gap: 1rem; }
@@ -264,37 +255,13 @@
         .mobile-toggle-container .toggle-button.active { background-color: var(--primary-color); color: #fff; }
 
         @media (max-width: 1023px) {
-            body {
-                overflow-y: auto;
-                height: auto;
-            }
-            .global-header {
-                padding: calc(var(--spacing-unit) * 0.5);
-            }
-            .toolbar-scroll-wrapper {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                scrollbar-width: none;
-            }
-            .toolbar-scroll-wrapper::-webkit-scrollbar {
-                display: none;
-            }
-            .editor-toolbar {
-                flex-wrap: nowrap;
-                padding-bottom: 8px;
-                margin-bottom: -8px;
-            }
-            #app-container {
-                flex-direction: column;
-                padding-top: 0;
-            }
-            .panel {
-                width: 100% !important; 
-                flex-basis: auto !important;
-                height: auto;
-                min-height: 400px;
-                flex-grow: 1;
-            }
+            body { overflow-y: auto; height: auto; }
+            .global-header { padding: calc(var(--spacing-unit) * 0.5); }
+            .toolbar-scroll-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+            .toolbar-scroll-wrapper::-webkit-scrollbar { display: none; }
+            .editor-toolbar { flex-wrap: nowrap; padding-bottom: 8px; margin-bottom: -8px; }
+            #app-container { flex-direction: column; padding-top: 0; }
+            .panel { width: 100% !important; flex-basis: auto !important; height: auto; min-height: 400px; flex-grow: 1; }
             .gutter { display: none !important; }
             .mobile-toggle-container { display: flex; }
             .panel.mobile-hidden { display: none; }
@@ -351,7 +318,6 @@
                         <span>Font Family</span>
                         <i class="fas fa-chevron-down"></i>
                     </button>
-                    <!-- CORRECTED: Removed inline style="display: none;" -->
                     <div id="fontFamilyOptions" class="custom-select-options" role="listbox">
                         <!-- JS populates this -->
                     </div>
@@ -366,7 +332,6 @@
     </div>
 
     <div id="app-container">
-        <!-- Code Editor Panel -->
         <div id="code-panel" class="panel code-editor-panel">
             <h2 class="panel-title">HTML Source Code</h2>
             <textarea
@@ -398,7 +363,6 @@
             </div>
         </div>
 
-        <!-- Live Preview Panel -->
         <div id="preview-panel" class="panel preview-panel">
             <h2 class="panel-title">Live Preview (Editable)</h2>
             <iframe
@@ -411,7 +375,6 @@
 
     <div id="messageBox" class="message-box"></div>
 
-    <!-- Modals -->
     <div id="linkModal" class="modal">
         <div class="modal-content">
             <span class="close-button">×</span>
@@ -438,20 +401,7 @@
             // --- DOM Element References ---
             const htmlCodeTextArea = document.getElementById('htmlCode');
             const previewFrame = document.getElementById('previewFrame');
-            const renderButton = document.getElementById('renderButton');
-            const syncButton = document.getElementById('syncButton');
-            const downloadButton = document.getElementById('downloadButton');
-            const messageBox = document.getElementById('messageBox');
             const editorToolbar = document.getElementById('editorToolbar');
-            const uploadHtmlButton = document.getElementById('uploadHtmlButton');
-            const htmlFileInput = document.getElementById('htmlFileInput');
-            const fontColorPicker = document.getElementById('fontColorPicker');
-            const fontBgColorPicker = document.getElementById('fontBgColorPicker');
-            const divBgColorPicker = document.getElementById('divBgColorPicker');
-            const insertLinkBtn = document.getElementById('insertLinkBtn');
-            const insertImageBtn = document.getElementById('insertImageBtn');
-            const clearFormatBtn = document.getElementById('clearFormatBtn');
-            const fontSizeSelect = document.getElementById('fontSizeSelect');
             const fontFamilySelectWrapper = document.getElementById('fontFamilySelectWrapper');
             const fontFamilyTrigger = document.getElementById('fontFamilyTrigger');
             const fontFamilyOptions = document.getElementById('fontFamilyOptions');
@@ -461,12 +411,6 @@
             const mobileViewToggle = document.getElementById('mobileViewToggle');
             const linkModal = document.getElementById('linkModal');
             const imageModal = document.getElementById('imageModal');
-            const closeButtons = document.querySelectorAll('.modal .close-button');
-            const confirmLinkBtn = document.getElementById('confirmLinkBtn');
-            const confirmImageBtn = document.getElementById('confirmImageBtn');
-            const linkURLInput = document.getElementById('linkURL');
-            const linkTextInput = document.getElementById('linkText');
-            const imageURLInput = document.getElementById('imageURL');
             
             // --- State Variables ---
             let iframeDoc;
@@ -478,6 +422,7 @@
 
             // --- Utility Functions ---
             const showMessage = (message, duration = 3000) => {
+                const messageBox = document.getElementById('messageBox');
                 messageBox.textContent = message;
                 messageBox.classList.add('show');
                 setTimeout(() => { messageBox.classList.remove('show'); }, duration);
@@ -489,73 +434,26 @@
             };
             const syncFromPreviewDebounced = debounce(syncFromPreview, 500);
 
-            // --- Command Execution ---
             function executeCommand(command, value = null) {
-                if (activeEditor === 'preview') {
-                    if (!iframeDoc) { showMessage('Preview not loaded.', 3000); return; }
+                if (activeEditor === 'preview' && iframeDoc) {
                     try {
                         previewFrame.contentWindow.focus();
                         iframeDoc.execCommand(command, false, value);
                         syncFromPreviewDebounced();
                         updateToolbarState();
-                        showMessage(`${command} applied!`, 1500);
-                    } catch (error) { console.error(`Error executing command '${command}':`, error); showMessage(`Error applying ${command}.`, 3000); }
-                } else if (activeEditor === 'code') {
-                    applyTagToTextarea(command);
+                    } catch (error) { console.error(`Error executing command '${command}':`, error); }
                 }
             }
             
-            function applyTagToTextarea(command) {
-                const tagMap = {'bold': 'strong', 'italic': 'em', 'underline': 'u', 'strikeThrough': 's'};
-                const tag = tagMap[command];
-                if (!tag) { showMessage(`Command '${command}' not supported.`, 2000); return; }
-                const start = htmlCodeTextArea.selectionStart, end = htmlCodeTextArea.selectionEnd;
-                if (start === end) { showMessage('Please select text to format.', 2500); return; }
-                const selectedText = htmlCodeTextArea.value.substring(start, end);
-                const newText = `<${tag}>${selectedText}</${tag}>`;
-                htmlCodeTextArea.value = htmlCodeTextArea.value.substring(0, start) + newText + htmlCodeTextArea.value.substring(end);
-                htmlCodeTextArea.focus();
-                htmlCodeTextArea.setSelectionRange(start + tag.length + 2, end + tag.length + 2);
-                showMessage(`Applied <${tag}> tag.`, 1500);
-                debounce(updatePreview, 750)();
-            }
-
-            // --- Modal Logic ---
-            function openModal(modalElement) {
-                modalElement.classList.add('show');
-                if (activeEditor === 'preview' && iframeDoc && previewFrame.contentWindow.getSelection().rangeCount > 0) {
-                    currentRange = previewFrame.contentWindow.getSelection().getRangeAt(0);
-                }
-            }
-            function closeModal(modalElement) {
-                modalElement.classList.remove('show');
-                modalElement.querySelectorAll('input').forEach(input => input.value = '');
-                currentRange = null;
-            }
-
-            // --- Toolbar State & Core Editor ---
             function updateToolbarState() {
                 if (!iframeDoc || activeEditor !== 'preview') return;
                 const selection = previewFrame.contentWindow.getSelection();
                 if (!selection || selection.rangeCount === 0) return;
                 
                 editorToolbar.querySelectorAll('[data-command]').forEach(button => {
-                    const command = button.dataset.command;
-                    try { button.classList.toggle('active', iframeDoc.queryCommandState(command)); } catch (e) { button.classList.remove('active'); }
+                    try { button.classList.toggle('active', iframeDoc.queryCommandState(button.dataset.command)); } catch (e) { button.classList.remove('active'); }
                 });
 
-                try {
-                    const rgbToHex = (rgb) => {
-                        if (!rgb || rgb.includes('transparent')) return '#000000';
-                        if (rgb.startsWith('#')) return rgb;
-                        const parts = rgb.match(/\d+/g);
-                        if (!parts || parts.length < 3) return '#000000';
-                        return '#' + parts.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
-                    };
-                    fontColorPicker.value = rgbToHex(iframeDoc.queryCommandValue('foreColor')) || '#000000';
-                    fontBgColorPicker.value = rgbToHex(iframeDoc.queryCommandValue('backColor')) || '#ffffff';
-                } catch (e) {}
-                try { fontSizeSelect.value = iframeDoc.queryCommandValue('fontSize') || ''; } catch (e) { fontSizeSelect.value = ''; }
                 try {
                     const fontName = iframeDoc.queryCommandValue('fontName').replace(/["']/g, '');
                     updateFontFamilySelection(fontName);
@@ -564,7 +462,7 @@
 
             function updatePreview() {
                 try {
-                    const htmlContent = htmlCodeTextArea.value;
+                    const htmlContent = document.getElementById('htmlCode').value;
                     iframeDoc = previewFrame.contentWindow.document;
                     const fontLink = document.getElementById('googleFontsLink').cloneNode();
                     const iframeHTML = `<!DOCTYPE html><html><head>${fontLink.outerHTML}<style>body{margin:0;padding:1rem;box-sizing:border-box;font-family:'Inter',sans-serif;line-height:1.6;word-wrap:break-word;min-height:calc(100% - 2rem);outline:none;background-color:white;} *{box-sizing:border-box;} img{max-width:100%;height:auto;display:block;margin:0.5rem 0;cursor:pointer;} a{color:#4A90E2;text-decoration:underline;} ul,ol{padding-left:1.5rem;margin-top:0.5rem;margin-bottom:0.5rem;} p{margin-bottom:0.8rem;} p:last-child{margin-bottom:0;}</style></head><body>${htmlContent}</body></html>`;
@@ -575,33 +473,12 @@
                     iframeDoc.body.addEventListener('input', () => { syncFromPreviewDebounced(); updateToolbarState(); });
                     iframeDoc.addEventListener('selectionchange', updateToolbarState);
                     iframeDoc.addEventListener('focus', () => { activeEditor = 'preview'; }, true);
-                    showMessage('HTML rendered successfully!', 2000);
-                } catch (error) { console.error('Error rendering HTML:', error); showMessage('Error rendering HTML.', 5000); }
+                } catch (error) { console.error('Error rendering HTML:', error); }
             }
 
             function syncFromPreview() {
-                if (!iframeDoc) { return; }
-                try { htmlCodeTextArea.value = iframeDoc.body.innerHTML; showMessage('HTML synced from preview.', 2000); } catch (error) { console.error('Error syncing HTML:', error); showMessage('Error syncing HTML.', 5000); }
-            }
-
-            function downloadHtml() {
-                try {
-                    const blob = new Blob([htmlCodeTextArea.value], { type: 'text/html' });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = 'my_editable_page.html';
-                    a.click();
-                    URL.revokeObjectURL(a.href);
-                    showMessage(`'my_editable_page.html' downloaded!`, 3000);
-                } catch (error) { console.error('Error downloading HTML:', error); showMessage('Error downloading HTML.', 5000); }
-            }
-            
-            function handleFile(file) {
-                if (!file || !file.type.match('text/html')) { showMessage('Invalid file type.', 4000); return; }
-                const reader = new FileReader();
-                reader.onload = (e) => { htmlCodeTextArea.value = e.target.result; showMessage(`${file.name} loaded.`, 2500); updatePreview(); };
-                reader.onerror = () => { showMessage(`Error reading file.`, 4000); };
-                reader.readAsText(file);
+                if (!iframeDoc) return;
+                try { document.getElementById('htmlCode').value = iframeDoc.body.innerHTML; } catch (error) { console.error('Error syncing HTML:', error); }
             }
 
             function handleLayoutChange() {
@@ -622,58 +499,6 @@
                 }
             }
             
-            // --- Event Listeners ---
-            renderButton.addEventListener('click', updatePreview);
-            syncButton.addEventListener('click', syncFromPreview);
-            downloadButton.addEventListener('click', downloadHtml);
-            editorToolbar.addEventListener('click', (event) => {
-                const target = event.target.closest('.toolbar-button');
-                if (target?.dataset.command) { executeCommand(target.dataset.command); }
-            });
-            fontColorPicker.addEventListener('change', (e) => executeCommand('foreColor', e.target.value));
-            fontBgColorPicker.addEventListener('change', (e) => executeCommand('backColor', e.target.value));
-            fontSizeSelect.addEventListener('change', (e) => executeCommand('fontSize', e.target.value));
-            clearFormatBtn.addEventListener('click', () => { executeCommand('removeFormat'); showMessage('Formatting cleared.', 1500); });
-            htmlCodeTextArea.addEventListener('focus', () => { activeEditor = 'code'; });
-            uploadHtmlButton.addEventListener('click', () => htmlFileInput.click());
-            htmlFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-            codePanel.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); codePanel.classList.add('drag-over'); });
-            codePanel.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); codePanel.classList.remove('drag-over'); });
-            codePanel.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); codePanel.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
-            mobileViewToggle.addEventListener('click', (e) => {
-                if (e.target.matches('.toggle-button')) {
-                    const view = e.target.dataset.view;
-                    mobileViewToggle.querySelector('.active').classList.remove('active');
-                    e.target.classList.add('active');
-                    codePanel.classList.toggle('mobile-hidden', view !== 'code');
-                    previewPanel.classList.toggle('mobile-hidden', view !== 'preview');
-                }
-            });
-            insertLinkBtn.addEventListener('click', () => { openModal(linkModal); linkURLInput.focus(); });
-            confirmLinkBtn.addEventListener('click', () => {
-                const url = linkURLInput.value; if (!url) { return; }
-                if (currentRange) { previewFrame.contentWindow.getSelection().addRange(currentRange); }
-                executeCommand('createLink', url); closeModal(linkModal);
-            });
-            insertImageBtn.addEventListener('click', () => { openModal(imageModal); imageURLInput.focus(); });
-            confirmImageBtn.addEventListener('click', () => {
-                const url = imageURLInput.value; if (!url) { return; }
-                if (currentRange) { previewFrame.contentWindow.getSelection().addRange(currentRange); }
-                executeCommand('insertImage', url); closeModal(imageModal);
-            });
-            closeButtons.forEach(btn => btn.addEventListener('click', (e) => closeModal(e.target.closest('.modal'))));
-            window.addEventListener('click', (e) => {
-                if (e.target === linkModal) closeModal(linkModal);
-                if (e.target === imageModal) closeModal(imageModal);
-                // CORRECTED: Logic to close font dropdown
-                if (!fontFamilySelectWrapper.contains(e.target)) {
-                    fontFamilySelectWrapper.classList.remove('open');
-                    fontFamilyTrigger.setAttribute('aria-expanded', 'false');
-                }
-            });
-            window.addEventListener('resize', debounce(handleLayoutChange, 250));
-
-            // --- Custom Font Dropdown Logic (CORRECTED) ---
             function populateFontFamilySelect() {
                 fontFamilyOptions.innerHTML = '';
                 googleFonts.sort().forEach(font => {
@@ -705,7 +530,30 @@
                 }
             }
 
-            fontFamilyTrigger.addEventListener('click', () => {
+            // --- Event Listeners ---
+            document.getElementById('renderButton').addEventListener('click', updatePreview);
+            document.getElementById('syncButton').addEventListener('click', syncFromPreview);
+            document.getElementById('downloadButton').addEventListener('click', () => {
+                const blob = new Blob([document.getElementById('htmlCode').value], { type: 'text/html' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'my_editable_page.html';
+                a.click();
+                URL.revokeObjectURL(a.href);
+            });
+            editorToolbar.addEventListener('click', (event) => {
+                const target = event.target.closest('.toolbar-button');
+                if (target?.dataset.command) { executeCommand(target.dataset.command); }
+            });
+            document.getElementById('fontColorPicker').addEventListener('change', (e) => executeCommand('foreColor', e.target.value));
+            document.getElementById('fontBgColorPicker').addEventListener('change', (e) => executeCommand('backColor', e.target.value));
+            document.getElementById('fontSizeSelect').addEventListener('change', (e) => executeCommand('fontSize', e.target.value));
+            document.getElementById('clearFormatBtn').addEventListener('click', () => executeCommand('removeFormat'));
+            htmlCodeTextArea.addEventListener('focus', () => { activeEditor = 'code'; });
+
+            // CORRECTED: Custom Font Dropdown Logic
+            fontFamilyTrigger.addEventListener('click', (e) => {
+                e.stopPropagation(); // *** THE CRITICAL FIX *** Prevents the window click listener from firing immediately.
                 const isOpen = fontFamilySelectWrapper.classList.toggle('open');
                 fontFamilyTrigger.setAttribute('aria-expanded', isOpen);
             });
@@ -715,23 +563,39 @@
                 if (target) {
                     const font = target.dataset.value;
                     executeCommand('fontName', font);
-                    updateFontFamilySelection(font);
                     fontFamilySelectWrapper.classList.remove('open');
                     fontFamilyTrigger.setAttribute('aria-expanded', 'false');
                 }
             });
-            
-            // --- Initial Setup ---
-            function loadGoogleFonts() {
-                const fontFamiliesParam = googleFonts.map(font => encodeURIComponent(font).replace(/%20/g, '+')).join('&family=');
-                const link = document.createElement('link');
-                link.id = 'googleFontsLink';
-                link.rel = 'stylesheet';
-                link.href = `https://fonts.googleapis.com/css2?family=${fontFamiliesParam}&display=swap`;
-                document.head.appendChild(link);
-            }
 
-            loadGoogleFonts();
+            window.addEventListener('click', (e) => {
+                if (!fontFamilySelectWrapper.contains(e.target)) {
+                    fontFamilySelectWrapper.classList.remove('open');
+                    fontFamilyTrigger.setAttribute('aria-expanded', 'false');
+                }
+                if (e.target === linkModal) linkModal.classList.remove('show');
+                if (e.target === imageModal) imageModal.classList.remove('show');
+            });
+
+            window.addEventListener('resize', debounce(handleLayoutChange, 250));
+            mobileViewToggle.addEventListener('click', (e) => {
+                if (e.target.matches('.toggle-button')) {
+                    const view = e.target.dataset.view;
+                    mobileViewToggle.querySelector('.active').classList.remove('active');
+                    e.target.classList.add('active');
+                    codePanel.classList.toggle('mobile-hidden', view !== 'code');
+                    previewPanel.classList.toggle('mobile-hidden', view !== 'preview');
+                }
+            });
+
+            // --- Initial Setup ---
+            const fontFamiliesParam = googleFonts.map(font => encodeURIComponent(font).replace(/%20/g, '+')).join('&family=');
+            const link = document.createElement('link');
+            link.id = 'googleFontsLink';
+            link.rel = 'stylesheet';
+            link.href = `https://fonts.googleapis.com/css2?family=${fontFamiliesParam}&display=swap`;
+            document.head.appendChild(link);
+            
             populateFontFamilySelect();
             updatePreview();
             handleLayoutChange();
