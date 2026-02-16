@@ -1,800 +1,2222 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced WYSIWYG HTML Editor</title>
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Split.js for Resizable Panels -->
+    <title>WYSIWYG HTML Editor — 2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
     <style>
-        /* Variables for consistent styling */
+        /* ============================================================
+           1. DESIGN TOKEN SYSTEM — Semantic CSS Variables
+           ============================================================ */
         :root {
-            --primary-color: #4A90E2;
-            --secondary-color: #8C6FF7;
-            --tertiary-color: #2ECC71;
-            --text-color: #333;
-            --bg-light: #F4F7F6;
-            --bg-panel: #FFFFFF;
-            --border-color: #E0E0E0;
-            --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.08);
-            --border-radius: 8px;
-            --spacing-unit: 1rem;
-            --font-family-body: 'Inter', sans-serif;
-            --font-family-code: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
-            --header-height: auto; /* Let header size itself */
+            /* Surfaces */
+            --bg-canvas: #F0F2F5;
+            --bg-surface: #FFFFFF;
+            --bg-surface-elevated: #FFFFFF;
+            --bg-surface-hover: #F5F7FA;
+            --bg-surface-active: #EEF1F6;
+            --bg-inset: #F5F7FA;
+
+            /* Text */
+            --text-primary: #1A1D23;
+            --text-secondary: #4B5563;
+            --text-muted: #9CA3AF;
+            --text-on-accent: #FFFFFF;
+            --text-on-danger: #FFFFFF;
+
+            /* Borders */
+            --border-subtle: #E5E7EB;
+            --border-strong: #D1D5DB;
+            --border-focus: #6366F1;
+
+            /* Accents */
+            --accent-primary: #6366F1;
+            --accent-primary-hover: #4F46E5;
+            --accent-primary-soft: rgba(99, 102, 241, 0.08);
+            --accent-secondary: #8B5CF6;
+            --accent-danger: #EF4444;
+            --accent-danger-soft: rgba(239, 68, 68, 0.08);
+            --accent-success: #10B981;
+            --accent-success-soft: rgba(16, 185, 129, 0.08);
+            --accent-warning: #F59E0B;
+            --accent-warning-soft: rgba(245, 158, 11, 0.08);
+
+            /* Focus & Selection */
+            --focus-ring: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent-primary);
+            --selection-bg: rgba(99, 102, 241, 0.15);
+
+            /* Radii */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --radius-full: 9999px;
+
+            /* Spacing */
+            --space-1: 2px;
+            --space-2: 4px;
+            --space-3: 6px;
+            --space-4: 8px;
+            --space-6: 12px;
+            --space-8: 16px;
+            --space-10: 20px;
+            --space-12: 24px;
+            --space-16: 32px;
+            --space-20: 40px;
+
+            /* Shadows */
+            --shadow-soft: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+            --shadow-medium: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06);
+            --shadow-large: 0 12px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-glow: 0 0 24px rgba(99, 102, 241, 0.15);
+
+            /* Typography */
+            --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-code: 'Fira Code', 'Menlo', 'Monaco', 'Consolas', monospace;
+            --text-display: 700 28px/34px var(--font-ui);
+            --text-h1: 600 22px/28px var(--font-ui);
+            --text-h2: 600 18px/24px var(--font-ui);
+            --text-body: 400 14px/22px var(--font-ui);
+            --text-body-medium: 500 14px/22px var(--font-ui);
+            --text-meta: 400 12px/18px var(--font-ui);
+            --text-meta-medium: 500 12px/18px var(--font-ui);
+
+            /* Motion */
+            --motion-fast: 120ms ease;
+            --motion-normal: 180ms ease;
+            --motion-slow: 260ms ease;
+            --motion-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+            /* Layout */
+            --app-bar-height: 56px;
+            --command-bar-height: 48px;
+            --status-bar-height: 32px;
+            --sidebar-width: 280px;
         }
 
-        /* Base Styles */
+        /* ============================================================
+           DARK MODE TOKENS
+           ============================================================ */
+        [data-theme="dark"] {
+            --bg-canvas: #0F1117;
+            --bg-surface: #1A1D27;
+            --bg-surface-elevated: #222635;
+            --bg-surface-hover: #262A3A;
+            --bg-surface-active: #2D3248;
+            --bg-inset: #141722;
+
+            --text-primary: #F1F3F5;
+            --text-secondary: #A1A7B5;
+            --text-muted: #6B7280;
+
+            --border-subtle: #2D3248;
+            --border-strong: #3D4460;
+
+            --accent-primary-soft: rgba(99, 102, 241, 0.15);
+            --accent-danger-soft: rgba(239, 68, 68, 0.15);
+            --accent-success-soft: rgba(16, 185, 129, 0.15);
+            --accent-warning-soft: rgba(245, 158, 11, 0.15);
+
+            --selection-bg: rgba(99, 102, 241, 0.25);
+
+            --shadow-soft: 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.15);
+            --shadow-medium: 0 4px 12px rgba(0,0,0,0.25), 0 1px 3px rgba(0,0,0,0.2);
+            --shadow-large: 0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25);
+            --shadow-glow: 0 0 24px rgba(99, 102, 241, 0.25);
+        }
+
+        /* ============================================================
+           2. RESET & BASE
+           ============================================================ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: var(--font-family-body);
-            margin: 0;
-            overflow: hidden; /* Prevent body scroll */
-            background-color: var(--bg-light);
-            color: var(--text-color);
-            line-height: 1.6;
+            font: var(--text-body);
+            font-family: var(--font-ui);
+            background: var(--bg-canvas);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            height: 100vh; /* Full viewport height */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
-        /*
-         * NEW: Global Header for Universal Toolbar
-         * This ensures the toolbar is always visible and positioned correctly.
-        */
-        .global-header {
-            padding: calc(var(--spacing-unit) * 0.75) var(--spacing-unit);
-            background-color: var(--bg-panel);
-            box-shadow: var(--shadow-light);
-            z-index: 10;
-            position: relative; /* Stacking context */
+        ::selection { background: var(--selection-bg); }
+
+        :focus-visible {
+            outline: none;
+            box-shadow: var(--focus-ring);
         }
 
-        #app-container {
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* ============================================================
+           3. UTILITY CLASSES
+           ============================================================ */
+        .sr-only {
+            position: absolute; width: 1px; height: 1px;
+            padding: 0; margin: -1px; overflow: hidden;
+            clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+
+        .separator {
+            width: 1px;
+            height: 24px;
+            background: var(--border-subtle);
+            margin: 0 var(--space-2);
+            flex-shrink: 0;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .toolbar-group-label {
+            font: var(--text-meta);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0 var(--space-3);
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        /* ============================================================
+           4. TOP APP BAR
+           ============================================================ */
+        .app-bar {
+            height: var(--app-bar-height);
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            padding: 0 var(--space-8);
+            gap: var(--space-8);
+            z-index: 50;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+        }
+
+        .app-bar-brand {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            flex-shrink: 0;
+        }
+
+        .app-bar-logo {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        }
+
+        .app-bar-title {
+            font: var(--text-body-medium);
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .app-bar-doc-state {
+            font: var(--text-meta);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            white-space: nowrap;
+        }
+
+        .app-bar-doc-state .state-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-success);
+            flex-shrink: 0;
+        }
+
+        .app-bar-doc-state .state-dot.unsynced {
+            background: var(--accent-warning);
+        }
+
+        .app-bar-spacer { flex: 1; }
+
+        .app-bar-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+
+        /* ============================================================
+           5. BUTTONS — Shared
+           ============================================================ */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-3);
+            font: var(--text-body-medium);
+            border: none;
+            cursor: pointer;
+            border-radius: var(--radius-md);
+            transition: all var(--motion-fast);
+            white-space: nowrap;
+            position: relative;
+            user-select: none;
+        }
+
+        .btn:active { transform: scale(0.96); }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: var(--text-on-accent);
+            padding: var(--space-4) var(--space-8);
+            box-shadow: var(--shadow-soft);
+        }
+        .btn-primary:hover {
+            background: var(--accent-primary-hover);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .btn-secondary {
+            background: var(--bg-surface);
+            color: var(--text-primary);
+            padding: var(--space-4) var(--space-8);
+            border: 1px solid var(--border-subtle);
+        }
+        .btn-secondary:hover {
+            background: var(--bg-surface-hover);
+            border-color: var(--border-strong);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            padding: var(--space-4);
+            border-radius: var(--radius-md);
+        }
+        .btn-ghost:hover {
+            background: var(--bg-surface-hover);
+            color: var(--text-primary);
+        }
+
+        .btn-danger {
+            background: var(--accent-danger);
+            color: var(--text-on-danger);
+            padding: var(--space-4) var(--space-8);
+        }
+        .btn-danger:hover { background: #DC2626; }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: var(--radius-md);
+        }
+        .btn-icon:hover {
+            background: var(--bg-surface-hover);
+            color: var(--text-primary);
+        }
+
+        .btn i, .btn .fa-solid, .btn .fa-regular, .btn .fas, .btn .far {
+            font-size: 14px;
+        }
+
+        .btn-sm {
+            padding: var(--space-2) var(--space-4);
+            font: var(--text-meta-medium);
+            border-radius: var(--radius-sm);
+        }
+
+        /* ============================================================
+           6. COMMAND BAR (Formatting Toolbar)
+           ============================================================ */
+        .command-bar {
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            padding: var(--space-3) var(--space-8);
+            gap: var(--space-3);
+            flex-shrink: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-subtle) transparent;
+            z-index: 40;
+        }
+
+        .command-bar::-webkit-scrollbar { height: 3px; }
+        .command-bar::-webkit-scrollbar-track { background: transparent; }
+        .command-bar::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 2px; }
+
+        .command-bar .toolbar-btn {
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--motion-fast);
+            flex-shrink: 0;
+            font-size: 13px;
+            position: relative;
+        }
+
+        .command-bar .toolbar-btn:hover {
+            background: var(--bg-surface-hover);
+            color: var(--text-primary);
+            border-color: var(--border-subtle);
+        }
+
+        .command-bar .toolbar-btn:active { transform: scale(0.92); }
+
+        .command-bar .toolbar-btn.active {
+            background: var(--accent-primary-soft);
+            color: var(--accent-primary);
+            border-color: transparent;
+        }
+
+        .command-bar .toolbar-btn.danger {
+            color: var(--text-muted);
+        }
+        .command-bar .toolbar-btn.danger:hover {
+            background: var(--accent-danger-soft);
+            color: var(--accent-danger);
+        }
+
+        .command-bar .toolbar-btn[aria-disabled="true"] {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        /* Tooltip for toolbar buttons */
+        .command-bar .toolbar-btn[data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%) translateY(4px);
+            background: var(--bg-surface-elevated);
+            color: var(--text-primary);
+            font: var(--text-meta);
+            padding: var(--space-2) var(--space-4);
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
+            box-shadow: var(--shadow-medium);
+            border: 1px solid var(--border-subtle);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity var(--motion-fast), transform var(--motion-fast);
+            z-index: 100;
+        }
+
+        .command-bar .toolbar-btn[data-tooltip]:hover::after {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .command-bar .color-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-1) var(--space-3);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            height: 32px;
+            cursor: pointer;
+            transition: all var(--motion-fast);
+            flex-shrink: 0;
+        }
+
+        .command-bar .color-input-wrap:hover {
+            border-color: var(--border-strong);
+            background: var(--bg-surface-hover);
+        }
+
+        .command-bar .color-input-wrap .color-swatch {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 3px;
+            cursor: pointer;
+            padding: 0;
+            background: transparent;
+        }
+        .command-bar .color-input-wrap .color-swatch::-webkit-color-swatch-wrapper { padding: 0; }
+        .command-bar .color-input-wrap .color-swatch::-webkit-color-swatch { border: none; border-radius: 2px; }
+
+        .command-bar .color-input-wrap .color-label-text {
+            font: var(--text-meta);
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .command-bar .toolbar-select {
+            height: 32px;
+            padding: 0 var(--space-4);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            background: var(--bg-surface);
+            color: var(--text-secondary);
+            font: var(--text-meta);
+            cursor: pointer;
+            outline: none;
+            transition: all var(--motion-fast);
+            flex-shrink: 0;
+            max-width: 140px;
+        }
+
+        .command-bar .toolbar-select:hover {
+            border-color: var(--border-strong);
+        }
+
+        .command-bar .toolbar-select:focus-visible {
+            box-shadow: var(--focus-ring);
+        }
+
+        .command-bar-mode {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            flex-shrink: 0;
+        }
+
+        .mode-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            font: var(--text-meta-medium);
+            color: var(--text-muted);
+            padding: var(--space-2) var(--space-4);
+            background: var(--bg-inset);
+            border-radius: var(--radius-full);
+            white-space: nowrap;
+        }
+
+        .mode-indicator i { font-size: 10px; }
+
+        .mode-indicator.active-preview {
+            color: var(--accent-primary);
+            background: var(--accent-primary-soft);
+        }
+
+        .mode-indicator.active-code {
+            color: var(--accent-success);
+            background: var(--accent-success-soft);
+        }
+
+        /* ============================================================
+           7. MAIN WORKSPACE
+           ============================================================ */
+        .workspace {
             flex: 1;
             display: flex;
-            padding: var(--spacing-unit);
-            gap: 0;
             min-height: 0;
+            position: relative;
         }
 
-        .panel {
+        .pane {
             display: flex;
             flex-direction: column;
-            background-color: var(--bg-panel);
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow-light);
-            padding: calc(var(--spacing-unit) * 1.5);
+            min-height: 0;
             overflow: hidden;
         }
 
-        .panel-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: var(--spacing-unit);
-            text-align: center;
-            color: var(--primary-color);
+        .pane-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-4) var(--space-8);
+            border-bottom: 1px solid var(--border-subtle);
+            background: var(--bg-surface);
+            flex-shrink: 0;
         }
 
-        /* Code Editor Panel */
-        .code-editor-panel {
-            /* NEW: Added transition for drag-and-drop feedback */
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        .pane-header-title {
+            font: var(--text-meta-medium);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
         }
-        
-        /* NEW: Drag-over state for file drop zone */
-        .code-editor-panel.drag-over {
-            border: 2px dashed var(--primary-color);
-            box-shadow: 0 0 15px rgba(74, 144, 226, 0.4);
+
+        .pane-header-title i { font-size: 12px; opacity: 0.7; }
+
+        .pane-header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .pane-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            position: relative;
+        }
+
+        /* Code Pane */
+        .code-pane {
+            background: var(--bg-surface);
+            transition: border-color var(--motion-normal), box-shadow var(--motion-normal);
+        }
+
+        .code-pane.drag-over {
+            box-shadow: inset 0 0 0 2px var(--accent-primary);
         }
 
         .code-textarea {
             flex: 1;
             width: 100%;
-            padding: calc(var(--spacing-unit) * 0.75);
-            border: 1px solid var(--border-color);
-            border-radius: calc(var(--border-radius) / 2);
-            font-family: var(--font-family-code);
-            font-size: 0.95rem;
+            padding: var(--space-8);
+            border: none;
+            background: var(--bg-inset);
+            color: var(--text-primary);
+            font-family: var(--font-code);
+            font-size: 13px;
+            line-height: 1.7;
             resize: none;
             outline: none;
-            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            margin-bottom: var(--spacing-unit);
+            tab-size: 2;
         }
 
-        .code-textarea:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+        .code-textarea::placeholder {
+            color: var(--text-muted);
         }
 
-        .panel-actions {
+        .code-pane-actions {
             display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            justify-content: center;
+            align-items: center;
+            gap: var(--space-4);
+            padding: var(--space-4) var(--space-8);
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border-subtle);
+            flex-shrink: 0;
         }
 
-        .action-button {
-            padding: 0.75rem 1.25rem;
+        /* Preview Pane */
+        .preview-pane {
+            background: var(--bg-surface);
+            position: relative;
+        }
+
+        .preview-frame {
+            flex: 1;
+            width: 100%;
             border: none;
-            border-radius: calc(var(--border-radius) / 2);
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.2s ease-in-out;
+            background: white;
+        }
+
+        /* Gutter */
+        .gutter {
+            background: var(--bg-canvas);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background var(--motion-fast);
+            position: relative;
+        }
+
+        .gutter::after {
+            content: '';
+            width: 4px;
+            height: 32px;
+            background: var(--border-subtle);
+            border-radius: var(--radius-full);
+            transition: all var(--motion-fast);
+        }
+
+        .gutter:hover {
+            background: var(--bg-surface-hover);
+        }
+        .gutter:hover::after {
+            background: var(--accent-primary);
+            height: 48px;
+        }
+
+        .gutter.gutter-horizontal {
+            cursor: ew-resize;
+            width: 8px;
+        }
+
+        /* ============================================================
+           8. STATUS BAR
+           ============================================================ */
+        .status-bar {
+            height: var(--status-bar-height);
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            padding: 0 var(--space-8);
+            gap: var(--space-8);
+            flex-shrink: 0;
+            z-index: 40;
+        }
+
+        .status-bar-section {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            font: var(--text-meta);
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .status-bar-section i {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        .status-bar-section.success { color: var(--accent-success); }
+        .status-bar-section.warning { color: var(--accent-warning); }
+        .status-bar-section.danger { color: var(--accent-danger); }
+
+        .status-bar-spacer { flex: 1; }
+
+        /* ============================================================
+           9. TOAST NOTIFICATIONS
+           ============================================================ */
+        .toast-container {
+            position: fixed;
+            bottom: calc(var(--status-bar-height) + var(--space-8));
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-3);
+            pointer-events: none;
+        }
+
+        .toast {
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            flex: 1 1 auto;
-            min-width: 140px;
-            justify-content: center;
-        }
-        
-        .action-button i { font-size: 1.1em; }
-        .action-button.primary { background-color: var(--primary-color); color: white; }
-        .action-button.primary:hover { background-color: #3A7CD0; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3); }
-        .action-button.secondary { background-color: var(--secondary-color); color: white; }
-        .action-button.secondary:hover { background-color: #7258D6; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(140, 111, 247, 0.3); }
-        .action-button.tertiary { background-color: var(--tertiary-color); color: white; }
-        .action-button.tertiary:hover { background-color: #27AE60; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(46, 204, 113, 0.3); }
-
-        .gutter {
-            background-color: var(--border-color);
-            background-repeat: no-repeat;
-            background-position: 50%;
-            border-radius: var(--border-radius);
-            transition: background-color 0.2s ease;
-        }
-        .gutter:hover { background-color: var(--primary-color); }
-        .gutter.gutter-horizontal { cursor: ew-resize; margin: 0 var(--spacing-unit); }
-        .gutter.gutter-vertical { cursor: ns-resize; margin: var(--spacing-unit) 0; }
-
-        /* Preview Panel */
-        .preview-panel {
-            position: relative;
-            overflow: hidden;
+            gap: var(--space-4);
+            padding: var(--space-4) var(--space-8);
+            background: var(--bg-surface-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-full);
+            box-shadow: var(--shadow-large);
+            font: var(--text-meta-medium);
+            white-space: nowrap;
+            pointer-events: auto;
+            opacity: 0;
+            transform: translateY(12px) scale(0.95);
+            transition: all var(--motion-normal);
         }
 
-        /* Universal Editor Toolbar (styles adjusted for global header) */
-        .editor-toolbar {
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        .toast i {
+            font-size: 13px;
+        }
+
+        .toast.toast-success i { color: var(--accent-success); }
+        .toast.toast-error i { color: var(--accent-danger); }
+        .toast.toast-warning i { color: var(--accent-warning); }
+        .toast.toast-info i { color: var(--accent-primary); }
+
+        /* ============================================================
+           10. MODALS
+           ============================================================ */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
             display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            padding-bottom: 0; /* No bottom padding needed here */
-            border-bottom: none; /* No border needed here */
-            margin-bottom: 0;
-            justify-content: center;
             align-items: center;
-        }
-
-        .toolbar-button {
-            background-color: transparent;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 0.6rem 0.8rem;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.2s ease-in-out;
-            color: var(--text-color);
-        }
-
-        .toolbar-button:hover,
-        .toolbar-button:focus {
-            background-color: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-            outline: none;
-        }
-
-        .toolbar-button.active {
-            background-color: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        .color-picker-container { display: flex; align-items: center; gap: 0.3rem; position: relative; padding: 0.3rem 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; }
-        .color-picker-container .color-label { font-size: 0.9rem; white-space: nowrap; }
-        .color-picker { -webkit-appearance: none; -moz-appearance: none; appearance: none; width: 24px; height: 24px; background-color: transparent; border: none; cursor: pointer; padding: 0; position: relative; vertical-align: middle; }
-        .color-picker::-webkit-color-swatch-wrapper { padding: 0; }
-        .color-picker::-webkit-color-swatch { border: 1px solid var(--border-color); border-radius: 3px; }
-        .color-picker::-moz-color-swatch-wrapper { padding: 0; }
-        .color-picker::-moz-color-swatch { border: 1px solid var(--border-color); border-radius: 3px; }
-
-        .toolbar-select { padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: white; font-size: 0.9rem; cursor: pointer; outline: none; transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
-        .toolbar-select:focus { border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2); }
-
-        .editable-frame { flex: 1; width: 100%; border: 1px solid var(--border-color); border-radius: var(--border-radius); background-color: white; min-height: 200px; }
-
-        .message-box { position: fixed; bottom: var(--spacing-unit); left: 50%; transform: translateX(-50%); background-color: #333; color: white; padding: 0.75rem 1.5rem; border-radius: 50px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); opacity: 0; visibility: hidden; transition: opacity 0.3s ease-out, visibility 0.3s ease-out; z-index: 100; white-space: nowrap; }
-        .message-box.show { opacity: 1; visibility: visible; }
-
-        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
-
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease-out, visibility 0.3s ease-out; }
-        .modal.show { opacity: 1; visibility: visible; }
-        .modal-content { background-color: var(--bg-panel); padding: 2rem; border-radius: var(--border-radius); box-shadow: var(--shadow-light); width: 90%; max-width: 500px; position: relative; display: flex; flex-direction: column; gap: 1rem; }
-        .modal-content h3 { margin-top: 0; font-size: 1.3rem; color: var(--primary-color); }
-        .close-button { position: absolute; top: 1rem; right: 1rem; font-size: 1.8rem; cursor: pointer; color: #888; transition: color 0.2s ease-in-out; }
-        .close-button:hover { color: var(--text-color); }
-        .modal-input { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1rem; outline: none; transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
-        .modal-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2); }
-        .modal-button { align-self: flex-end; padding: 0.75rem 1.5rem; border: none; border-radius: calc(var(--border-radius) / 2); font-size: 1rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.2s ease-in-out; }
-        .modal-button.primary { background-color: var(--primary-color); color: white; }
-        .modal-button.primary:hover { background-color: #3A7CD0; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3); }
-
-        /*
-         * NEW: Mobile View Toggle Styles
-         * These controls are only shown on smaller screens.
-        */
-        .mobile-toggle-container {
-            display: none; /* Hidden by default */
             justify-content: center;
-            gap: 0; /* Buttons will touch */
-            padding: 0 var(--spacing-unit) var(--spacing-unit);
-        }
-        .mobile-toggle-container .toggle-button {
-            flex: 1;
-            padding: 0.75rem 1rem;
-            font-size: 1rem;
-            font-weight: 600;
-            border: 1px solid var(--primary-color);
-            background-color: #fff;
-            color: var(--primary-color);
-            cursor: pointer;
-            transition: background-color 0.2s, color 0.2s;
-        }
-        .mobile-toggle-container .toggle-button:first-child {
-            border-radius: var(--border-radius) 0 0 var(--border-radius);
-        }
-        .mobile-toggle-container .toggle-button:last-child {
-            border-radius: 0 var(--border-radius) var(--border-radius) 0;
-            border-left-width: 0;
-        }
-        .mobile-toggle-container .toggle-button.active {
-            background-color: var(--primary-color);
-            color: #fff;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity var(--motion-normal), visibility var(--motion-normal);
         }
 
-        /*
-         * NEW: Responsive Media Query for Mobile Layout
-         * Breakpoint at 1023px.
-        */
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-dialog {
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-large);
+            width: 90%;
+            max-width: 440px;
+            padding: var(--space-12);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-8);
+            transform: translateY(12px) scale(0.97);
+            transition: transform var(--motion-normal);
+        }
+
+        .modal-overlay.show .modal-dialog {
+            transform: translateY(0) scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font: var(--text-h2);
+            color: var(--text-primary);
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            font-size: 18px;
+            transition: all var(--motion-fast);
+        }
+
+        .modal-close:hover {
+            background: var(--bg-surface-hover);
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-6);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        .form-label {
+            font: var(--text-meta-medium);
+            color: var(--text-secondary);
+        }
+
+        .form-input {
+            height: 40px;
+            padding: 0 var(--space-6);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            background: var(--bg-inset);
+            color: var(--text-primary);
+            font: var(--text-body);
+            outline: none;
+            transition: all var(--motion-fast);
+        }
+
+        .form-input::placeholder { color: var(--text-muted); }
+        .form-input:hover { border-color: var(--border-strong); }
+        .form-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-primary-soft); }
+
+        .form-input.invalid { border-color: var(--accent-danger); }
+        .form-input.valid { border-color: var(--accent-success); }
+
+        .form-hint {
+            font: var(--text-meta);
+            color: var(--text-muted);
+        }
+        .form-hint.error { color: var(--accent-danger); }
+
+        .modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: var(--space-4);
+        }
+
+        /* ============================================================
+           11. OVERFLOW / SETTINGS MENU
+           ============================================================ */
+        .overflow-menu {
+            position: absolute;
+            top: calc(100% + var(--space-2));
+            right: 0;
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-large);
+            min-width: 200px;
+            padding: var(--space-2);
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-4px);
+            transition: all var(--motion-fast);
+        }
+
+        .overflow-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .overflow-menu-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            width: 100%;
+            padding: var(--space-4) var(--space-6);
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font: var(--text-body);
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: all var(--motion-fast);
+            text-align: left;
+        }
+
+        .overflow-menu-item:hover {
+            background: var(--bg-surface-hover);
+            color: var(--text-primary);
+        }
+
+        .overflow-menu-item i { width: 16px; text-align: center; font-size: 13px; opacity: 0.7; }
+
+        .overflow-divider {
+            height: 1px;
+            background: var(--border-subtle);
+            margin: var(--space-2) 0;
+        }
+
+        /* ============================================================
+           12. MOBILE WORKSPACE TABS
+           ============================================================ */
+        .mobile-tabs {
+            display: none;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+        }
+
+        .mobile-tabs-inner {
+            display: flex;
+            padding: var(--space-3) var(--space-4);
+            gap: var(--space-2);
+        }
+
+        .mobile-tab {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-3);
+            padding: var(--space-4) var(--space-6);
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font: var(--text-meta-medium);
+            cursor: pointer;
+            border-radius: var(--radius-md);
+            transition: all var(--motion-fast);
+        }
+
+        .mobile-tab:hover { background: var(--bg-surface-hover); }
+
+        .mobile-tab.active {
+            background: var(--accent-primary-soft);
+            color: var(--accent-primary);
+        }
+
+        .mobile-tab i { font-size: 13px; }
+
+        /* Mobile floating action */
+        .mobile-fab {
+            display: none;
+            position: fixed;
+            bottom: calc(var(--status-bar-height) + var(--space-8));
+            right: var(--space-8);
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: var(--shadow-large), var(--shadow-glow);
+            font-size: 20px;
+            z-index: 80;
+            transition: all var(--motion-fast);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mobile-fab:hover {
+            transform: scale(1.05);
+            background: var(--accent-primary-hover);
+        }
+
+        .mobile-fab:active { transform: scale(0.95); }
+
+        /* ============================================================
+           13. ERROR BANNER
+           ============================================================ */
+        .error-banner {
+            display: none;
+            align-items: center;
+            gap: var(--space-4);
+            padding: var(--space-4) var(--space-8);
+            background: var(--accent-danger-soft);
+            border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+            font: var(--text-meta);
+            color: var(--accent-danger);
+            flex-shrink: 0;
+        }
+
+        .error-banner.show { display: flex; }
+
+        .error-banner i { font-size: 13px; }
+
+        .error-banner-message { flex: 1; }
+
+        .error-banner-dismiss {
+            background: none;
+            border: none;
+            color: var(--accent-danger);
+            cursor: pointer;
+            padding: var(--space-2);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            opacity: 0.7;
+            transition: opacity var(--motion-fast);
+        }
+
+        .error-banner-dismiss:hover { opacity: 1; }
+
+        /* ============================================================
+           14. RESPONSIVE — Tablet (768-1023)
+           ============================================================ */
         @media (max-width: 1023px) {
-            body {
-                /* Allow vertical scrolling on mobile if content overflows */
-                overflow: auto; 
+            .command-bar { padding: var(--space-3) var(--space-4); }
+            .toolbar-group-label { display: none; }
+            .app-bar-doc-state { display: none; }
+        }
+
+        /* ============================================================
+           15. RESPONSIVE — Mobile (<768)
+           ============================================================ */
+        @media (max-width: 767px) {
+            body { overflow: auto; }
+
+            .app-bar {
+                height: 48px;
+                padding: 0 var(--space-4);
+                gap: var(--space-4);
             }
-            #app-container {
-                flex-direction: column;
-                padding-top: 0; /* Remove top padding as toggle container has bottom padding */
+
+            .app-bar-title { font-size: 13px; }
+
+            .command-bar {
+                padding: var(--space-2) var(--space-3);
+                gap: var(--space-1);
             }
-            .panel {
-                /* Override Split.js inline styles to take full width */
-                width: 100% !important; 
+
+            .command-bar .toolbar-btn { width: 36px; height: 36px; }
+            .command-bar .toolbar-btn[data-tooltip]::after { display: none; }
+
+            .mobile-tabs { display: block; }
+            .mobile-fab { display: flex; }
+
+            .workspace { flex-direction: column; }
+
+            .pane {
+                width: 100% !important;
                 flex-basis: auto !important;
                 height: auto;
-                min-height: 400px;
-                flex-grow: 1;
+                min-height: 0;
+                flex: 1;
             }
-            /* Hide the Split.js gutter on mobile */
-            .gutter {
-                display: none !important;
-            }
-            /* Show the mobile toggle controls */
-            .mobile-toggle-container {
-                display: flex;
-            }
-            /* Class to hide panels on mobile */
-            .panel.mobile-hidden {
-                display: none;
-            }
+
+            .pane.mobile-hidden { display: none !important; }
+
+            .gutter { display: none !important; }
+
+            .status-bar { padding: 0 var(--space-4); gap: var(--space-4); }
+
+            .code-pane-actions { flex-wrap: wrap; }
+            .code-pane-actions .btn { flex: 1; min-width: 100px; }
         }
+
+        /* ============================================================
+           16. SCROLLBAR STYLING
+           ============================================================ */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+        /* ============================================================
+           17. ANIMATIONS
+           ============================================================ */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .animate-in { animation: fadeIn var(--motion-normal) both; }
+
+        .loading-pulse { animation: pulse 1.5s ease-in-out infinite; }
     </style>
 </head>
 <body>
 
-    <!-- NEW: Global Header for Universal Toolbar -->
-    <header class="global-header">
-        <div id="editorToolbar" class="editor-toolbar">
-            <button class="toolbar-button" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
-            <button class="toolbar-button" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
-            <button class="toolbar-button" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
-            <button class="toolbar-button" data-command="strikeThrough" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
-            <button class="toolbar-button" data-command="superscript" title="Superscript"><i class="fas fa-superscript"></i></button>
-            <button class="toolbar-button" data-command="subscript" title="Subscript"><i class="fas fa-subscript"></i></button>
-            <button class="toolbar-button" data-command="insertUnorderedList" title="Bulleted List"><i class="fas fa-list-ul"></i></button>
-            <button class="toolbar-button" data-command="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+    <!-- ======== TOP APP BAR ======== -->
+    <header class="app-bar" role="banner">
+        <div class="app-bar-brand">
+            <div class="app-bar-logo" aria-hidden="true"><i class="fas fa-code"></i></div>
+            <span class="app-bar-title">HTML Editor</span>
+        </div>
 
-            <div class="color-picker-container">
-                <label for="fontColorPicker" class="sr-only">Font Color</label>
-                <input type="color" id="fontColorPicker" class="color-picker" title="Font Color">
-                <span class="color-label"><i class="fas fa-palette"></i> Text</span>
+        <div class="app-bar-doc-state" id="docState" aria-live="polite">
+            <span class="state-dot" id="stateDot"></span>
+            <span id="stateText">Ready to edit</span>
+        </div>
+
+        <div class="app-bar-spacer"></div>
+
+        <div class="app-bar-actions">
+            <button class="btn btn-primary btn-sm" id="renderButton" title="Render HTML to preview (Ctrl+Enter)">
+                <i class="fas fa-play"></i> Render
+            </button>
+            <button class="btn btn-secondary btn-sm" id="syncButton" title="Sync code from preview edits">
+                <i class="fas fa-arrows-rotate"></i> Sync
+            </button>
+
+            <div class="separator" aria-hidden="true"></div>
+
+            <div style="position:relative">
+                <button class="btn btn-icon" id="overflowMenuBtn" title="More actions" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-ellipsis-vertical"></i>
+                </button>
+                <div class="overflow-menu" id="overflowMenu" role="menu" aria-label="More actions">
+                    <button class="overflow-menu-item" id="uploadHtmlButton" role="menuitem">
+                        <i class="fas fa-upload"></i> Upload HTML file
+                    </button>
+                    <button class="overflow-menu-item" id="downloadButton" role="menuitem">
+                        <i class="fas fa-download"></i> Download HTML
+                    </button>
+                    <div class="overflow-divider"></div>
+                    <button class="overflow-menu-item" id="resetSampleBtn" role="menuitem">
+                        <i class="fas fa-rotate-left"></i> Reset to sample
+                    </button>
+                    <div class="overflow-divider"></div>
+                    <button class="overflow-menu-item" id="themeToggleBtn" role="menuitem">
+                        <i class="fas fa-moon"></i> <span id="themeToggleLabel">Dark mode</span>
+                    </button>
+                </div>
             </div>
-            <div class="color-picker-container">
-                <label for="fontBgColorPicker" class="sr-only">Highlight Color</label>
-                <input type="color" id="fontBgColorPicker" class="color-picker" title="Highlight Color">
-                <span class="color-label"><i class="fas fa-highlighter"></i> Highlight</span>
-            </div>
-            <div class="color-picker-container">
-                <label for="divBgColorPicker" class="sr-only">Div Background Color</label>
-                <input type="color"id="divBgColorPicker" class="color-picker" title="Block Background Color">
-                <span class="color-label"><i class="fas fa-fill-drip"></i> Block Bg</span>
-            </div>
 
-            <button class="toolbar-button" id="insertLinkBtn" title="Insert Link"><i class="fas fa-link"></i></button>
-            <button class="toolbar-button" id="insertImageBtn" title="Insert Image"><i class="fas fa-image"></i></button>
-            <button class="toolbar-button" id="clearFormatBtn" title="Clear Formatting"><i class="fas fa-eraser"></i></button>
-
-            <select id="fontSizeSelect" class="toolbar-select" title="Font Size">
-                <option value="" disabled selected>Font Size</option>
-                <option value="1">Smallest</option>
-                <option value="2">Smaller</option>
-                <option value="3">Normal</option>
-                <option value="4">Large</option>
-                <option value="5">Larger</option>
-                <option value="6">Huge</option>
-                <option value="7">Largest</option>
-            </select>
-
-            <select id="fontSelect" class="toolbar-select" title="Font Family">
-                <option value="" disabled selected>Font Family</option>
-            </select>
+            <input type="file" id="htmlFileInput" accept=".html,.htm" class="sr-only" aria-label="Upload HTML file">
         </div>
     </header>
 
-    <!-- NEW: Mobile View Toggle Buttons -->
-    <div class="mobile-toggle-container" id="mobileViewToggle">
-        <button class="toggle-button active" data-view="code">Code</button>
-        <button class="toggle-button" data-view="preview">Preview</button>
+    <!-- ======== ERROR BANNER (hidden by default) ======== -->
+    <div class="error-banner" id="errorBanner" role="alert">
+        <i class="fas fa-exclamation-circle"></i>
+        <span class="error-banner-message" id="errorBannerMessage"></span>
+        <button class="error-banner-dismiss" id="errorBannerDismiss" aria-label="Dismiss error">
+            <i class="fas fa-times"></i>
+        </button>
     </div>
 
-    <div id="app-container">
-        <!-- Code Editor Panel -->
-        <div id="code-panel" class="panel code-editor-panel">
-            <h2 class="panel-title">HTML Source Code</h2>
-            <textarea
-                id="htmlCode"
-                class="code-textarea"
-                placeholder="Paste your HTML code here, or drop an .html file."
-            ><h1>Welcome to the WYSIWYG Editor!</h1>
-<p>This is a <strong>powerful</strong> and <em>intuitive</em> editor. Try editing the text directly in the preview.</p>
-<ul>
-    <li>Item 1</li>
-    <li>Item 2</li>
-</ul>
-<p>You can also insert <a href="https://google.com" target="_blank">links</a> and <span style="background-color: yellow;">highlight</span> text.</p>
-<img src="https://placehold.co/400x200/lightgreen/white?text=Editable+Image" alt="Placeholder Image" style="width: 100%; max-width: 400px; height: auto; display: block; margin: 1rem 0;"></textarea>
-            <div class="panel-actions">
-                <!-- NEW: Upload HTML Button and hidden file input -->
-                <button id="uploadHtmlButton" class="action-button primary">
-                    <i class="fas fa-upload"></i> Upload HTML
-                </button>
-                <input type="file" id="htmlFileInput" accept=".html,.htm" class="sr-only">
+    <!-- ======== COMMAND BAR (Formatting Toolbar) ======== -->
+    <nav class="command-bar" id="commandBar" role="toolbar" aria-label="Formatting toolbar">
+        <!-- Undo/Redo -->
+        <div class="toolbar-group" role="group" aria-label="History">
+            <button class="toolbar-btn" data-command="undo" data-tooltip="Undo (Ctrl+Z)" aria-label="Undo">
+                <i class="fas fa-rotate-left"></i>
+            </button>
+            <button class="toolbar-btn" data-command="redo" data-tooltip="Redo (Ctrl+Y)" aria-label="Redo">
+                <i class="fas fa-rotate-right"></i>
+            </button>
+        </div>
 
-                <button id="renderButton" class="action-button primary">
-                    <i class="fas fa-play"></i> Render HTML
+        <div class="separator" aria-hidden="true"></div>
+
+        <!-- Block format -->
+        <span class="toolbar-group-label" aria-hidden="true">Block</span>
+        <div class="toolbar-group" role="group" aria-label="Block format">
+            <select id="blockFormatSelect" class="toolbar-select" aria-label="Block format" title="Block format" style="max-width:120px">
+                <option value="">Normal</option>
+                <option value="h1">Heading 1</option>
+                <option value="h2">Heading 2</option>
+                <option value="h3">Heading 3</option>
+                <option value="h4">Heading 4</option>
+                <option value="h5">Heading 5</option>
+                <option value="h6">Heading 6</option>
+                <option value="p">Paragraph</option>
+                <option value="pre">Preformatted</option>
+                <option value="blockquote">Blockquote</option>
+            </select>
+        </div>
+
+        <div class="separator" aria-hidden="true"></div>
+
+        <!-- Text group -->
+        <span class="toolbar-group-label" aria-hidden="true">Text</span>
+        <div class="toolbar-group" role="group" aria-label="Text formatting">
+            <button class="toolbar-btn" data-command="bold" data-tooltip="Bold (Ctrl+B)" aria-label="Bold">
+                <i class="fas fa-bold"></i>
+            </button>
+            <button class="toolbar-btn" data-command="italic" data-tooltip="Italic (Ctrl+I)" aria-label="Italic">
+                <i class="fas fa-italic"></i>
+            </button>
+            <button class="toolbar-btn" data-command="underline" data-tooltip="Underline (Ctrl+U)" aria-label="Underline">
+                <i class="fas fa-underline"></i>
+            </button>
+            <button class="toolbar-btn" data-command="strikeThrough" data-tooltip="Strikethrough" aria-label="Strikethrough">
+                <i class="fas fa-strikethrough"></i>
+            </button>
+            <button class="toolbar-btn" data-command="superscript" data-tooltip="Superscript" aria-label="Superscript">
+                <i class="fas fa-superscript"></i>
+            </button>
+            <button class="toolbar-btn" data-command="subscript" data-tooltip="Subscript" aria-label="Subscript">
+                <i class="fas fa-subscript"></i>
+            </button>
+        </div>
+
+        <div class="separator" aria-hidden="true"></div>
+
+        <!-- Alignment group -->
+        <span class="toolbar-group-label" aria-hidden="true">Align</span>
+        <div class="toolbar-group" role="group" aria-label="Text alignment">
+            <button class="toolbar-btn" data-command="justifyLeft" data-tooltip="Align left" aria-label="Align left">
+                <i class="fas fa-align-left"></i>
+            </button>
+            <button class="toolbar-btn" data-command="justifyCenter" data-tooltip="Align center" aria-label="Align center">
+                <i class="fas fa-align-center"></i>
+            </button>
+            <button class="toolbar-btn" data-command="justifyRight" data-tooltip="Align right" aria-label="Align right">
+                <i class="fas fa-align-right"></i>
+            </button>
+            <button class="toolbar-btn" data-command="justifyFull" data-tooltip="Justify" aria-label="Justify">
+                <i class="fas fa-align-justify"></i>
+            </button>
+        </div>
+
+        <div class="separator" aria-hidden="true"></div>
+
+        <!-- Lists & Indent group -->
+        <span class="toolbar-group-label" aria-hidden="true">Lists</span>
+        <div class="toolbar-group" role="group" aria-label="List and indent formatting">
+            <button class="toolbar-btn" data-command="insertUnorderedList" data-tooltip="Bullet list" aria-label="Bullet list">
+                <i class="fas fa-list-ul"></i>
+            </button>
+            <button class="toolbar-btn" data-command="insertOrderedList" data-tooltip="Numbered list" aria-label="Numbered list">
+                <i class="fas fa-list-ol"></i>
+            </button>
+            <button class="toolbar-btn" data-command="outdent" data-tooltip="Decrease indent" aria-label="Decrease indent">
+                <i class="fas fa-outdent"></i>
+            </button>
+            <button class="toolbar-btn" data-command="indent" data-tooltip="Increase indent" aria-label="Increase indent">
+                <i class="fas fa-indent"></i>
+            </button>
+        </div>
+
+        <div class="separator" aria-hidden="true"></div>
+
+        <!-- Insert group -->
+        <span class="toolbar-group-label" aria-hidden="true">Insert</span>
+        <div class="toolbar-group" role="group" aria-label="Insert elements">
+            <button class="toolbar-btn" id="insertLinkBtn" data-tooltip="Insert link (Ctrl+K)" aria-label="Insert link">
+                <i class="fas fa-link"></i>
+            </button>
+            <button class="toolbar-btn" id="insertImageBtn" data-tooltip="Insert image" aria-label="Insert image">
+                <i class="fas fa-image"></i>
+            </button>
+            <button class="toolbar-btn" data-command="insertHorizontalRule" data-tooltip="Horizontal rule" aria-label="Insert horizontal rule">
+                <i class="fas fa-minus"></i>
+            </button>
+        </div>
+
+        <div class="separator" aria-hidden="true"></div>
+
+        <!-- Style group -->
+        <span class="toolbar-group-label" aria-hidden="true">Color</span>
+        <div class="toolbar-group" role="group" aria-label="Color formatting">
+            <div class="color-input-wrap">
+                <input type="color" id="fontColorPicker" class="color-swatch" aria-label="Text color" value="#000000">
+                <span class="color-label-text">Text</span>
+            </div>
+            <div class="color-input-wrap">
+                <input type="color" id="fontBgColorPicker" class="color-swatch" aria-label="Highlight color" value="#FFFF00">
+                <span class="color-label-text">Highlight</span>
+            </div>
+            <div class="color-input-wrap">
+                <input type="color" id="divBgColorPicker" class="color-swatch" aria-label="Block background color" value="#FFFFFF">
+                <span class="color-label-text">Block</span>
+            </div>
+        </div>
+
+        <div class="separator" aria-hidden="true"></div>
+
+        <!-- Typography group -->
+        <span class="toolbar-group-label" aria-hidden="true">Type</span>
+        <div class="toolbar-group" role="group" aria-label="Typography">
+            <select id="fontSizeSelect" class="toolbar-select" aria-label="Font size" title="Font size">
+                <option value="" disabled selected>Size</option>
+                <option value="1">Tiny</option>
+                <option value="2">Small</option>
+                <option value="3">Normal</option>
+                <option value="4">Large</option>
+                <option value="5">X-Large</option>
+                <option value="6">XX-Large</option>
+                <option value="7">Huge</option>
+            </select>
+            <select id="fontSelect" class="toolbar-select" aria-label="Font family" title="Font family">
+                <option value="" disabled selected>Font</option>
+            </select>
+        </div>
+
+        <div class="separator" aria-hidden="true"></div>
+
+        <!-- Clear format — isolated -->
+        <button class="toolbar-btn danger" id="clearFormatBtn" data-tooltip="Clear formatting" aria-label="Clear formatting">
+            <i class="fas fa-eraser"></i>
+        </button>
+
+        <!-- Mode indicator (pushed to end) -->
+        <div class="command-bar-mode">
+            <div class="mode-indicator" id="modeIndicator">
+                <i class="fas fa-circle"></i>
+                <span id="modeLabel">Preview mode</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ======== MOBILE TABS ======== -->
+    <div class="mobile-tabs" id="mobileTabs">
+        <div class="mobile-tabs-inner">
+            <button class="mobile-tab active" data-view="code" aria-label="Code editor">
+                <i class="fas fa-code"></i> Code
+            </button>
+            <button class="mobile-tab" data-view="preview" aria-label="Preview">
+                <i class="fas fa-eye"></i> Preview
+            </button>
+        </div>
+    </div>
+
+    <!-- ======== MAIN WORKSPACE ======== -->
+    <main class="workspace" id="workspace">
+        <!-- Code Pane -->
+        <div id="codePane" class="pane code-pane">
+            <div class="pane-header">
+                <div class="pane-header-title">
+                    <i class="fas fa-code"></i> HTML Source
+                </div>
+                <div class="pane-header-actions">
+                    <button class="btn btn-ghost btn-sm" id="uploadBtnInline" title="Upload HTML file">
+                        <i class="fas fa-upload"></i> Upload
+                    </button>
+                </div>
+            </div>
+            <div class="pane-body">
+                <textarea
+                    id="htmlCode"
+                    class="code-textarea"
+                    spellcheck="false"
+                    placeholder="Write or paste your HTML here, or drop an .html file..."
+                    aria-label="HTML source code editor"
+                ><h1>Welcome to the WYSIWYG Editor</h1>
+<p>This is a <strong>powerful</strong> and <em>intuitive</em> editor. Try editing the text directly in the preview pane.</p>
+<ul>
+    <li>Visual editing with live sync</li>
+    <li>Dark mode support</li>
+    <li>Grouped formatting controls</li>
+</ul>
+<p>Insert <a href="https://google.com" target="_blank">links</a>, apply <span style="background-color: #fef08a;">highlights</span>, and format with ease.</p>
+<img src="https://placehold.co/600x280/6366F1/FFFFFF?text=Editable+Preview" alt="Demo Image" style="width:100%;max-width:600px;height:auto;display:block;margin:1rem 0;border-radius:8px;"></textarea>
+            </div>
+            <div class="code-pane-actions">
+                <button class="btn btn-primary" id="renderBtnPane" title="Render HTML (Ctrl+Enter)">
+                    <i class="fas fa-play"></i> Render
                 </button>
-                <button id="syncButton" class="action-button secondary">
-                    <i class="fas fa-sync-alt"></i> Sync from Preview
+                <button class="btn btn-secondary" id="syncBtnPane" title="Sync code from preview">
+                    <i class="fas fa-arrows-rotate"></i> Sync
                 </button>
-                <button id="downloadButton" class="action-button tertiary">
-                    <i class="fas fa-download"></i> Download HTML
+                <button class="btn btn-secondary" id="downloadBtnPane" title="Download HTML file">
+                    <i class="fas fa-download"></i> Download
                 </button>
             </div>
         </div>
 
-        <!-- Live Preview Panel -->
-        <div id="preview-panel" class="panel preview-panel">
-            <h2 class="panel-title">Live Preview (Editable)</h2>
-            <iframe
-                id="previewFrame"
-                class="editable-frame"
-                sandbox="allow-same-origin allow-scripts allow-forms allow-modals allow-popups"
-            ></iframe>
+        <!-- Preview Pane -->
+        <div id="previewPane" class="pane preview-pane">
+            <div class="pane-header">
+                <div class="pane-header-title">
+                    <i class="fas fa-eye"></i> Live Preview
+                    <span style="font: var(--text-meta); color: var(--text-muted); font-weight: 400;">(editable)</span>
+                </div>
+                <div class="pane-header-actions">
+                    <button class="btn btn-ghost btn-sm" id="syncBtnPreviewHeader" title="Sync from this preview">
+                        <i class="fas fa-arrows-rotate"></i> Sync
+                    </button>
+                </div>
+            </div>
+            <div class="pane-body">
+                <iframe
+                    id="previewFrame"
+                    class="preview-frame"
+                    sandbox="allow-same-origin allow-scripts allow-forms allow-modals allow-popups"
+                    title="Live HTML preview"
+                ></iframe>
+            </div>
+        </div>
+    </main>
+
+    <!-- ======== STATUS BAR ======== -->
+    <footer class="status-bar" id="statusBar" role="status" aria-live="polite">
+        <div class="status-bar-section" id="statusMode">
+            <i class="fas fa-pen-to-square"></i>
+            <span id="statusModeText">Preview focused</span>
+        </div>
+        <div class="status-bar-section" id="statusRender">
+            <i class="fas fa-circle-check"></i>
+            <span id="statusRenderText">Not rendered yet</span>
+        </div>
+        <div class="status-bar-section" id="statusSync">
+            <i class="fas fa-arrows-rotate"></i>
+            <span id="statusSyncText">In sync</span>
+        </div>
+        <div class="status-bar-spacer"></div>
+        <div class="status-bar-section">
+            <i class="fas fa-keyboard"></i>
+            <span>Ctrl+Enter to render</span>
+        </div>
+    </footer>
+
+    <!-- ======== MOBILE FAB ======== -->
+    <button class="mobile-fab" id="mobileFab" title="Render HTML" aria-label="Render HTML">
+        <i class="fas fa-play"></i>
+    </button>
+
+    <!-- ======== TOAST CONTAINER ======== -->
+    <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+    <!-- ======== LINK MODAL ======== -->
+    <div class="modal-overlay" id="linkModal" role="dialog" aria-modal="true" aria-labelledby="linkModalTitle">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h2 class="modal-title" id="linkModalTitle">Insert Link</h2>
+                <button class="modal-close" aria-label="Close" data-close-modal>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="linkURL">URL</label>
+                    <input class="form-input" type="url" id="linkURL" placeholder="https://example.com" autocomplete="off">
+                    <span class="form-hint" id="linkURLHint"></span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="linkText">Display text <span style="color:var(--text-muted)">(optional)</span></label>
+                    <input class="form-input" type="text" id="linkText" placeholder="Click here" autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close-modal>Cancel</button>
+                <button class="btn btn-primary" id="confirmLinkBtn">
+                    <i class="fas fa-link"></i> Insert Link
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- The message box now uses position:fixed to be independent of panel scrolling -->
-    <div id="messageBox" class="message-box"></div>
-
-    <!-- Modals (unchanged) -->
-    <div id="linkModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">×</span>
-            <h3>Insert Hyperlink</h3>
-            <label for="linkURL">URL:</label>
-            <input type="url" id="linkURL" placeholder="https://example.com" class="modal-input">
-            <label for="linkText">Text to display:</label>
-            <input type="text" id="linkText" placeholder="Click here" class="modal-input">
-            <button id="confirmLinkBtn" class="modal-button primary">Insert Link</button>
+    <!-- ======== IMAGE MODAL ======== -->
+    <div class="modal-overlay" id="imageModal" role="dialog" aria-modal="true" aria-labelledby="imageModalTitle">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h2 class="modal-title" id="imageModalTitle">Insert Image</h2>
+                <button class="modal-close" aria-label="Close" data-close-modal>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="imageURL">Image URL</label>
+                    <input class="form-input" type="url" id="imageURL" placeholder="https://example.com/photo.jpg" autocomplete="off">
+                    <span class="form-hint" id="imageURLHint"></span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="imageAlt">Alt text <span style="color:var(--text-muted)">(accessibility)</span></label>
+                    <input class="form-input" type="text" id="imageAlt" placeholder="Describe the image" autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close-modal>Cancel</button>
+                <button class="btn btn-primary" id="confirmImageBtn">
+                    <i class="fas fa-image"></i> Insert Image
+                </button>
+            </div>
         </div>
     </div>
-    <div id="imageModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">×</span>
-            <h3>Insert Image</h3>
-            <label for="imageURL">Image URL:</label>
-            <input type="url" id="imageURL" placeholder="https://example.com/image.jpg" class="modal-input">
-            <button id="confirmImageBtn" class="modal-button primary">Insert Image</button>
-        </div>
-    </div>
 
+    <!-- ======== JAVASCRIPT ======== -->
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- DOM Element References ---
-            const htmlCodeTextArea = document.getElementById('htmlCode');
-            const previewFrame = document.getElementById('previewFrame');
-            const renderButton = document.getElementById('renderButton');
-            const syncButton = document.getElementById('syncButton');
-            const downloadButton = document.getElementById('downloadButton');
-            const messageBox = document.getElementById('messageBox');
-            const editorToolbar = document.getElementById('editorToolbar');
+    document.addEventListener('DOMContentLoaded', () => {
 
-            // NEW: File Upload elements
-            const uploadHtmlButton = document.getElementById('uploadHtmlButton');
-            const htmlFileInput = document.getElementById('htmlFileInput');
+        /* ==========================================================
+           DOM REFERENCES
+           ========================================================== */
+        const $ = (sel, ctx = document) => ctx.querySelector(sel);
+        const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
-            // Toolbar buttons and selects
-            const fontColorPicker = document.getElementById('fontColorPicker');
-            const fontBgColorPicker = document.getElementById('fontBgColorPicker');
-            const divBgColorPicker = document.getElementById('divBgColorPicker');
-            const insertLinkBtn = document.getElementById('insertLinkBtn');
-            const insertImageBtn = document.getElementById('insertImageBtn');
-            const clearFormatBtn = document.getElementById('clearFormatBtn');
-            const fontSizeSelect = document.getElementById('fontSizeSelect');
-            const fontSelect = document.getElementById('fontSelect');
+        const htmlCode = $('#htmlCode');
+        const previewFrame = $('#previewFrame');
+        const commandBar = $('#commandBar');
+        const toastContainer = $('#toastContainer');
+        const statusBar = $('#statusBar');
+        const workspace = $('#workspace');
+        const codePane = $('#codePane');
+        const previewPane = $('#previewPane');
 
-            // Layout & Panel elements
-            const appContainer = document.getElementById('app-container');
-            const codePanel = document.getElementById('code-panel');
-            const previewPanel = document.getElementById('preview-panel');
-            const mobileViewToggle = document.getElementById('mobileViewToggle');
+        // App bar buttons
+        const renderButton = $('#renderButton');
+        const syncButton = $('#syncButton');
+        const overflowMenuBtn = $('#overflowMenuBtn');
+        const overflowMenu = $('#overflowMenu');
+        const uploadHtmlButton = $('#uploadHtmlButton');
+        const downloadButton = $('#downloadButton');
+        const resetSampleBtn = $('#resetSampleBtn');
+        const themeToggleBtn = $('#themeToggleBtn');
+        const themeToggleLabel = $('#themeToggleLabel');
+        const htmlFileInput = $('#htmlFileInput');
 
-            // Modals
-            const linkModal = document.getElementById('linkModal');
-            const imageModal = document.getElementById('imageModal');
-            const closeButtons = document.querySelectorAll('.modal .close-button');
-            const confirmLinkBtn = document.getElementById('confirmLinkBtn');
-            const confirmImageBtn = document.getElementById('confirmImageBtn');
-            const linkURLInput = document.getElementById('linkURL');
-            const linkTextInput = document.getElementById('linkText');
-            const imageURLInput = document.getElementById('imageURL');
-            
-            // --- State Variables ---
-            let iframeDoc;
-            let currentRange = null;
-            let splitInstance = null;
-            const RESPONSIVE_BREAKPOINT = 1024; // in pixels
-            let activeEditor = 'preview'; // 'code' or 'preview'
-            
-            const googleFonts = ["Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Source Sans Pro", "Noto Sans", "Poppins", "Raleway", "Ubuntu", "Merriweather", "Playfair Display", "Lora", "Crimson Text", "IBM Plex Sans", "Inter", "Fira Sans", "Nunito", "Quicksand", "Work Sans", "Rubik", "Bitter", "PT Sans", "Dosis", "Exo 2", "Cabin", "Titillium Web", "Josefin Sans", "Varela Round", "Lobster", "Pacifico", "Great Vibes", "Dancing Script", "Indie Flower", "Permanent Marker", "Amatic SC", "Shadows Into Light", "Bebas Neue", "Anton", "Righteous", "Alfa Slab One", "Passion One", "Ultra", "Comfortaa", "Kanit", "Prompt", "Karla", "Space Mono", "Inconsolata", "Cutive Mono", "Source Code Pro", "Fira Code", "Abel", "Arvo", "Alegreya", "Cardo", "Cinzel", "Domine", "Gentium Book Basic", "Literata", "Old Standard TT", "PT Serif", "Roboto Slab", "Slabo 27px", "Tangerine", "Merienda", "Sacramento", "Satisfy", "Courgette", "Glegoo", "Questrial", "Rokkitt", "Spectral", "IBM Plex Serif", "Barlow", "Commissioner", "Assistant", "Manrope", "Lexend Deca", "Red Hat Display", "Recursive", "Chivo", "Archivo", "Heebo", "Hind Siliguri", "Mukta", "Public Sans", "Spartan", "Syne", "Fraunces", "Epilogue", "Plus Jakarta Sans", "Space Grotesk", "Outfit", "Readex Pro", "Lexend", "Familjen Grotesk", "Sono", "Urbanist", "Bai Jamjuree", "Sen", "Sora", "Spline Sans", "Georama", "Goldman", "DM Sans", "Chakra Petch", "VT323", "Press Start 2P", "Special Elite", "Creepster", "Metal Mania"];
+        // Pane action buttons
+        const renderBtnPane = $('#renderBtnPane');
+        const syncBtnPane = $('#syncBtnPane');
+        const downloadBtnPane = $('#downloadBtnPane');
+        const uploadBtnInline = $('#uploadBtnInline');
+        const syncBtnPreviewHeader = $('#syncBtnPreviewHeader');
+        const mobileFab = $('#mobileFab');
+        const mobileTabs = $('#mobileTabs');
 
-            // --- Utility Functions ---
-            const showMessage = (message, duration = 3000) => {
-                messageBox.textContent = message;
-                messageBox.classList.add('show');
-                setTimeout(() => { messageBox.classList.remove('show'); }, duration);
-            };
+        // Toolbar controls
+        const fontColorPicker = $('#fontColorPicker');
+        const fontBgColorPicker = $('#fontBgColorPicker');
+        const divBgColorPicker = $('#divBgColorPicker');
+        const insertLinkBtn = $('#insertLinkBtn');
+        const insertImageBtn = $('#insertImageBtn');
+        const clearFormatBtn = $('#clearFormatBtn');
+        const fontSizeSelect = $('#fontSizeSelect');
+        const fontSelect = $('#fontSelect');
+        const blockFormatSelect = $('#blockFormatSelect');
+        const modeIndicator = $('#modeIndicator');
+        const modeLabel = $('#modeLabel');
 
-            const debounce = (func, delay) => {
-                let timeoutId;
-                return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => func.apply(this, args), delay); };
-            };
-            const syncFromPreviewDebounced = debounce(syncFromPreview, 500);
+        // Status bar
+        const stateDot = $('#stateDot');
+        const stateText = $('#stateText');
+        const statusModeText = $('#statusModeText');
+        const statusRenderText = $('#statusRenderText');
+        const statusSyncText = $('#statusSyncText');
 
-            // --- NEW: Universal Command Execution ---
-            /**
-             * Applies a formatting command to the currently active editor (either code or preview).
-             * @param {string} command - The command to execute (e.g., 'bold').
-             * @param {string|null} value - The value for the command, if any (e.g., a URL or color).
-             */
-            function executeCommand(command, value = null) {
-                if (activeEditor === 'preview') {
-                    if (!iframeDoc) { showMessage('Preview not loaded. Render HTML first.', 3000); return; }
-                    try {
-                        previewFrame.contentWindow.focus();
-                        iframeDoc.execCommand(command, false, value);
-                        syncFromPreviewDebounced();
-                        updateToolbarState();
-                        showMessage(`${command} applied!`, 1500);
-                    } catch (error) {
-                        console.error(`Error executing preview command '${command}':`, error);
-                        showMessage(`Error applying ${command}.`, 3000);
-                    }
-                } else if (activeEditor === 'code') {
-                    applyTagToTextarea(command);
+        // Error banner
+        const errorBanner = $('#errorBanner');
+        const errorBannerMessage = $('#errorBannerMessage');
+        const errorBannerDismiss = $('#errorBannerDismiss');
+
+        // Modals
+        const linkModal = $('#linkModal');
+        const imageModal = $('#imageModal');
+        const confirmLinkBtn = $('#confirmLinkBtn');
+        const confirmImageBtn = $('#confirmImageBtn');
+        const linkURLInput = $('#linkURL');
+        const linkTextInput = $('#linkText');
+        const imageURLInput = $('#imageURL');
+        const imageAltInput = $('#imageAlt');
+        const linkURLHint = $('#linkURLHint');
+        const imageURLHint = $('#imageURLHint');
+
+        /* ==========================================================
+           STATE
+           ========================================================== */
+        let iframeDoc = null;
+        let currentRange = null;
+        let savedSelectionRange = null;
+        let splitInstance = null;
+        let activeEditor = 'preview';
+        let lastRenderTime = null;
+        let isSynced = true;
+        let hasRendered = false;
+
+        const BREAKPOINT_DESKTOP = 1024;
+        const BREAKPOINT_MOBILE = 768;
+
+        const SAMPLE_HTML = htmlCode.value;
+
+        const googleFonts = ["Roboto","Open Sans","Lato","Montserrat","Oswald","Poppins","Raleway","Ubuntu","Merriweather","Playfair Display","Lora","Inter","Fira Sans","Nunito","Quicksand","Work Sans","Rubik","PT Sans","Josefin Sans","Comfortaa","Karla","Space Mono","Inconsolata","Source Code Pro","Fira Code","DM Sans","Space Grotesk","Outfit","Urbanist","Sora","Plus Jakarta Sans","Lexend"];
+
+        /* ==========================================================
+           UTILITIES
+           ========================================================== */
+        function debounce(fn, ms) {
+            let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+        }
+
+        function showToast(message, type = 'info', duration = 2500) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            const icons = { success: 'fa-circle-check', error: 'fa-circle-exclamation', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
+            toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> ${message}`;
+            toastContainer.appendChild(toast);
+            requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 200);
+            }, duration);
+        }
+
+        function showError(message) {
+            errorBannerMessage.textContent = message;
+            errorBanner.classList.add('show');
+        }
+
+        function hideError() {
+            errorBanner.classList.remove('show');
+        }
+
+        function updateDocState(text, synced = true) {
+            stateText.textContent = text;
+            stateDot.className = 'state-dot' + (synced ? '' : ' unsynced');
+        }
+
+        function updateModeIndicator() {
+            const isPreview = activeEditor === 'preview';
+            modeIndicator.className = 'mode-indicator ' + (isPreview ? 'active-preview' : 'active-code');
+            modeLabel.textContent = isPreview ? 'Preview mode' : 'Code mode';
+            statusModeText.textContent = isPreview ? 'Preview focused' : 'Code focused';
+        }
+
+        function setUnsyncedState() {
+            isSynced = false;
+            updateDocState('Unsynced changes', false);
+            statusSyncText.textContent = 'Unsynced';
+            $('#statusSync').className = 'status-bar-section warning';
+        }
+
+        function setSyncedState() {
+            isSynced = true;
+            updateDocState('In sync', true);
+            statusSyncText.textContent = 'In sync';
+            $('#statusSync').className = 'status-bar-section';
+        }
+
+        function timeAgo(date) {
+            const s = Math.floor((Date.now() - date) / 1000);
+            if (s < 5) return 'just now';
+            if (s < 60) return `${s}s ago`;
+            return `${Math.floor(s / 60)}m ago`;
+        }
+
+        function rgbToHex(rgb) {
+            if (!rgb || rgb.includes('transparent')) return '#000000';
+            if (rgb.startsWith('#')) return rgb;
+            const p = rgb.match(/\d+/g);
+            if (!p || p.length < 3) return '#000000';
+            return '#' + p.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+        }
+
+        function isValidUrl(str) {
+            try { new URL(str); return true; } catch { return false; }
+        }
+
+        function saveIframeSelection() {
+            if (!iframeDoc) return;
+            try {
+                const sel = previewFrame.contentWindow.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                    savedSelectionRange = sel.getRangeAt(0).cloneRange();
                 }
+            } catch {}
+        }
+
+        function restoreIframeSelection() {
+            if (!iframeDoc || !savedSelectionRange) return;
+            try {
+                previewFrame.contentWindow.focus();
+                const sel = previewFrame.contentWindow.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(savedSelectionRange);
+            } catch {}
+        }
+
+        /* ==========================================================
+           THEME
+           ========================================================== */
+        function initTheme() {
+            const saved = localStorage.getItem('editor-theme');
+            if (saved) {
+                document.documentElement.dataset.theme = saved;
+            } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.dataset.theme = 'dark';
             }
-            
-            /**
-             * NEW: Wraps selected text in the HTML textarea with the appropriate tag.
-             * This function is a simplified way to apply formatting to the code editor.
-             * @param {string} command - The command to translate into a tag.
-             */
-            function applyTagToTextarea(command) {
-                const tagMap = {
-                    'bold': 'strong', 'italic': 'em', 'underline': 'u', 'strikeThrough': 's'
-                };
-                const tag = tagMap[command];
-                if (!tag) {
-                    showMessage(`Command '${command}' not supported for code editor.`, 2000);
-                    return;
-                }
+            updateThemeUI();
+        }
 
-                const start = htmlCodeTextArea.selectionStart;
-                const end = htmlCodeTextArea.selectionEnd;
-                const selectedText = htmlCodeTextArea.value.substring(start, end);
+        function toggleTheme() {
+            const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.theme = next;
+            localStorage.setItem('editor-theme', next);
+            updateThemeUI();
+        }
 
-                if (start === end) {
-                    showMessage('Please select text in the code editor to format.', 2500);
-                    return;
-                }
+        function updateThemeUI() {
+            const isDark = document.documentElement.dataset.theme === 'dark';
+            themeToggleLabel.textContent = isDark ? 'Light mode' : 'Dark mode';
+            themeToggleBtn.querySelector('i').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+        }
 
-                const newText = `<${tag}>${selectedText}</${tag}>`;
-                htmlCodeTextArea.value = htmlCodeTextArea.value.substring(0, start) + newText + htmlCodeTextArea.value.substring(end);
-                
-                // Keep focus and update selection
-                htmlCodeTextArea.focus();
-                htmlCodeTextArea.setSelectionRange(start + tag.length + 2, end + tag.length + 2);
+        /* ==========================================================
+           OVERFLOW MENU
+           ========================================================== */
+        function toggleOverflow() {
+            const open = overflowMenu.classList.toggle('show');
+            overflowMenuBtn.setAttribute('aria-expanded', open);
+        }
 
-                showMessage(`Applied <${tag}> tag.`, 1500);
-                // Automatically render after a manual code change
-                debounce(updatePreview, 750)();
-            }
+        function closeOverflow() {
+            overflowMenu.classList.remove('show');
+            overflowMenuBtn.setAttribute('aria-expanded', 'false');
+        }
 
-            // --- Modal & Toolbar Logic ---
-            function openModal(modalElement) {
-                modalElement.classList.add('show');
-                if (activeEditor === 'preview' && iframeDoc && previewFrame.contentWindow.getSelection().rangeCount > 0) {
-                    currentRange = previewFrame.contentWindow.getSelection().getRangeAt(0);
-                }
-            }
-            function closeModal(modalElement) {
-                modalElement.classList.remove('show');
-                modalElement.querySelectorAll('input').forEach(input => input.value = '');
-                currentRange = null;
-            }
-
-            function updateToolbarState() {
-                // Toolbar state is only updated based on the preview pane, as it's too complex
-                // to parse HTML in the code view on selection change without a full IDE library.
-                if (!iframeDoc || activeEditor !== 'preview') return;
-                
-                const selection = previewFrame.contentWindow.getSelection();
-                if (!selection || selection.rangeCount === 0) return;
-
-                const buttons = editorToolbar.querySelectorAll('[data-command]');
-                buttons.forEach(button => {
-                    const command = button.dataset.command;
-                    try {
-                        button.classList.toggle('active', iframeDoc.queryCommandState(command));
-                    } catch (e) { button.classList.remove('active'); }
-                });
-
+        /* ==========================================================
+           COMMAND EXECUTION
+           ========================================================== */
+        function executeCommand(command, value = null) {
+            if (activeEditor === 'preview') {
+                if (!iframeDoc) { showToast('Render HTML first', 'warning'); return; }
                 try {
-                    const rgbToHex = (rgb) => {
-                        if (!rgb || rgb.includes('transparent')) return '#000000';
-                        if (rgb.startsWith('#')) return rgb;
-                        const parts = rgb.match(/\d+/g);
-                        if (!parts || parts.length < 3) return '#000000';
-                        return '#' + parts.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
-                    };
-                    fontColorPicker.value = rgbToHex(iframeDoc.queryCommandValue('foreColor')) || '#000000';
-                    fontBgColorPicker.value = rgbToHex(iframeDoc.queryCommandValue('backColor')) || '#ffffff';
-                } catch (e) { /* silent fail */ }
-                try { fontSizeSelect.value = iframeDoc.queryCommandValue('fontSize') || ''; } catch (e) { fontSizeSelect.value = ''; }
-                try {
-                    const fontName = iframeDoc.queryCommandValue('fontName').replace(/"/g, '');
-                    fontSelect.value = Array.from(fontSelect.options).some(o => o.value === fontName) ? fontName : '';
-                } catch (e) { fontSelect.value = ''; }
-            }
-
-            // --- Core Editor Functionality ---
-            function updatePreview() {
-                try {
-                    const htmlContent = htmlCodeTextArea.value;
-                    iframeDoc = previewFrame.contentWindow.document;
-                    const fontFamiliesParam = googleFonts.map(font => encodeURIComponent(font).replace(/%20/g, '+') + ':wght@400;700').join('&family=');
-                    const googleFontsLink = `https://fonts.googleapis.com/css2?family=${fontFamiliesParam}&display=swap`;
-                    const iframeHTML = `<!DOCTYPE html><html><head><link href="${googleFontsLink}" rel="stylesheet"><style>body{margin:0;padding:1rem;box-sizing:border-box;font-family:'Inter',sans-serif;line-height:1.6;word-wrap:break-word;min-height:calc(100% - 2rem);outline:none;background-color:white;} *{box-sizing:border-box;} img{max-width:100%;height:auto;display:block;margin:0.5rem 0;cursor:pointer;} a{color:#4A90E2;text-decoration:underline;} ul,ol{padding-left:1.5rem;margin-top:0.5rem;margin-bottom:0.5rem;} p{margin-bottom:0.8rem;} p:last-child{margin-bottom:0;}</style></head><body>${htmlContent}</body></html>`;
-                    
-                    iframeDoc.open();
-                    iframeDoc.write(iframeHTML);
-                    iframeDoc.close();
-                    iframeDoc.designMode = 'on';
-
-                    // Re-attach listeners for sync and state updates
-                    iframeDoc.body.addEventListener('input', () => { syncFromPreviewDebounced(); updateToolbarState(); });
-                    iframeDoc.addEventListener('selectionchange', updateToolbarState);
-                    // NEW: Add focus listener to track active editor
-                    iframeDoc.addEventListener('focus', () => { activeEditor = 'preview'; }, true);
-                    
-                    showMessage('HTML rendered successfully!', 2000);
-                } catch (error) {
-                    console.error('Error rendering HTML:', error);
-                    showMessage('Error rendering HTML. Check console for details.', 5000);
+                    restoreIframeSelection();
+                    iframeDoc.execCommand(command, false, value);
+                    saveIframeSelection();
+                    syncFromPreviewDebounced();
+                    updateToolbarState();
+                } catch (err) {
+                    console.error(`Error executing '${command}':`, err);
+                    showToast(`Failed to apply ${command}`, 'error');
                 }
+            } else {
+                applyTagToTextarea(command);
             }
+        }
 
-            function syncFromPreview() {
-                if (!iframeDoc) { showMessage('No preview loaded to sync from.', 3000); return; }
-                try {
-                    htmlCodeTextArea.value = iframeDoc.body.innerHTML;
-                    showMessage('HTML synced from preview.', 2000);
-                } catch (error) { console.error('Error syncing HTML:', error); showMessage('Error syncing HTML.', 5000); }
-            }
+        function applyTagToTextarea(command) {
+            const tagMap = { bold: 'strong', italic: 'em', underline: 'u', strikeThrough: 's' };
+            const tag = tagMap[command];
+            if (!tag) { showToast(`"${command}" works only in preview mode`, 'warning'); return; }
 
-            function downloadHtml() {
-                try {
-                    const blob = new Blob([htmlCodeTextArea.value], { type: 'text/html' });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = 'my_editable_page.html';
-                    a.click();
-                    URL.revokeObjectURL(a.href);
-                    showMessage(`'my_editable_page.html' downloaded!`, 3000);
-                } catch (error) { console.error('Error downloading HTML:', error); showMessage('Error downloading HTML.', 5000); }
-            }
-            
-            // --- NEW: File Upload and Drag-and-Drop Logic ---
-            function handleFile(file) {
-                if (!file || !file.type.match('text/html')) {
-                    showMessage('Invalid file. Please select an .html file.', 4000);
-                    return;
+            const start = htmlCode.selectionStart;
+            const end = htmlCode.selectionEnd;
+            if (start === end) { showToast('Select text in code to format', 'info'); return; }
+
+            const selected = htmlCode.value.substring(start, end);
+            const wrapped = `<${tag}>${selected}</${tag}>`;
+            htmlCode.value = htmlCode.value.substring(0, start) + wrapped + htmlCode.value.substring(end);
+            htmlCode.focus();
+            htmlCode.setSelectionRange(start + tag.length + 2, end + tag.length + 2);
+            setUnsyncedState();
+        }
+
+        /* ==========================================================
+           TOOLBAR STATE
+           ========================================================== */
+        function updateToolbarState() {
+            if (!iframeDoc || activeEditor !== 'preview') return;
+            const sel = previewFrame.contentWindow.getSelection();
+            if (!sel || sel.rangeCount === 0) return;
+
+            const toggleCommands = ['bold','italic','underline','strikeThrough','superscript','subscript',
+                'insertUnorderedList','insertOrderedList','justifyLeft','justifyCenter','justifyRight','justifyFull'];
+
+            $$('[data-command]', commandBar).forEach(btn => {
+                const cmd = btn.dataset.command;
+                if (toggleCommands.includes(cmd)) {
+                    try { btn.classList.toggle('active', iframeDoc.queryCommandState(cmd)); }
+                    catch { btn.classList.remove('active'); }
                 }
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    htmlCodeTextArea.value = e.target.result;
-                    showMessage(`${file.name} loaded successfully.`, 2500);
-                    updatePreview(); // Immediately render the new content
-                };
-                reader.onerror = () => {
-                    showMessage(`Error reading file: ${file.name}`, 4000);
-                };
-                reader.readAsText(file);
-            }
+            });
 
-            // --- NEW: Responsive Layout Engine ---
-            /**
-             * Initializes, destroys, or reconfigures the layout based on viewport width.
-             * Manages the Split.js instance and the mobile view toggle.
-             */
-            function handleLayoutChange() {
-                const isDesktop = window.innerWidth >= RESPONSIVE_BREAKPOINT;
+            try { fontColorPicker.value = rgbToHex(iframeDoc.queryCommandValue('foreColor')); } catch {}
+            try { fontBgColorPicker.value = rgbToHex(iframeDoc.queryCommandValue('backColor')); } catch {}
+            try { fontSizeSelect.value = iframeDoc.queryCommandValue('fontSize') || ''; } catch { fontSizeSelect.value = ''; }
+            try {
+                const name = iframeDoc.queryCommandValue('fontName').replace(/"/g, '');
+                fontSelect.value = Array.from(fontSelect.options).some(o => o.value === name) ? name : '';
+            } catch { fontSelect.value = ''; }
 
-                if (isDesktop) {
-                    // --- DESKTOP VIEW ---
-                    mobileViewToggle.style.display = 'none';
-                    codePanel.classList.remove('mobile-hidden');
-                    previewPanel.classList.remove('mobile-hidden');
-                    appContainer.style.flexDirection = 'row';
-
-                    // Initialize Split.js only if it doesn't exist
-                    if (!splitInstance) {
-                        splitInstance = Split(['#code-panel', '#preview-panel'], {
-                            sizes: [50, 50],
-                            minSize: 300,
-                            gutterSize: 12,
-                            direction: 'horizontal',
-                            cursor: 'ew-resize'
-                        });
-                        console.log('Split.js initialized for desktop view.');
-                    }
+            // Block format select
+            try {
+                const block = iframeDoc.queryCommandValue('formatBlock');
+                if (block) {
+                    const tag = block.replace(/[<>]/g, '').toLowerCase();
+                    blockFormatSelect.value = Array.from(blockFormatSelect.options).some(o => o.value === tag) ? tag : '';
                 } else {
-                    // --- MOBILE VIEW ---
-                    mobileViewToggle.style.display = 'flex';
-                    appContainer.style.flexDirection = 'column';
-
-                    // Destroy Split.js instance if it exists
-                    if (splitInstance) {
-                        splitInstance.destroy();
-                        splitInstance = null;
-                        console.log('Split.js destroyed for mobile view.');
-                    }
-                    // Set default view (e.g., show code, hide preview)
-                    const currentActiveView = mobileViewToggle.querySelector('.toggle-button.active').dataset.view;
-                    codePanel.classList.toggle('mobile-hidden', currentActiveView !== 'code');
-                    previewPanel.classList.toggle('mobile-hidden', currentActiveView !== 'preview');
+                    blockFormatSelect.value = '';
                 }
+            } catch { blockFormatSelect.value = ''; }
+        }
+
+        /* ==========================================================
+           CORE: RENDER / SYNC / DOWNLOAD
+           ========================================================== */
+        function renderPreview() {
+            hideError();
+            try {
+                const html = htmlCode.value;
+                iframeDoc = previewFrame.contentWindow.document;
+
+                const fontsParam = googleFonts.map(f => encodeURIComponent(f).replace(/%20/g, '+') + ':wght@400;700').join('&family=');
+                const fontsLink = `https://fonts.googleapis.com/css2?family=${fontsParam}&display=swap`;
+
+                const isDark = document.documentElement.dataset.theme === 'dark';
+                const bodyBg = isDark ? '#1a1d27' : 'white';
+                const bodyColor = isDark ? '#f1f3f5' : '#1a1d23';
+
+                const iframeHTML = `<!DOCTYPE html><html><head>
+                    <link href="${fontsLink}" rel="stylesheet">
+                    <style>
+                        body { margin:0; padding:1.25rem; box-sizing:border-box; font-family:'Inter',sans-serif; line-height:1.7; word-wrap:break-word; min-height:calc(100%-2.5rem); outline:none; background:${bodyBg}; color:${bodyColor}; }
+                        * { box-sizing:border-box; }
+                        img { max-width:100%; height:auto; display:block; margin:0.75rem 0; border-radius:8px; }
+                        a { color:#6366F1; text-decoration:underline; text-underline-offset:2px; }
+                        ul,ol { padding-left:1.5rem; margin:0.5rem 0; }
+                        p { margin-bottom:0.8rem; } p:last-child { margin-bottom:0; }
+                        h1,h2,h3,h4,h5,h6 { margin-top:1rem; margin-bottom:0.5rem; line-height:1.3; }
+                        blockquote { border-left:3px solid #6366F1; padding-left:1rem; margin:1rem 0; color:#6b7280; }
+                        code { background:rgba(99,102,241,0.08); padding:0.1em 0.3em; border-radius:3px; font-family:'Fira Code',monospace; font-size:0.9em; }
+                        pre { background:rgba(0,0,0,0.05); padding:1rem; border-radius:8px; overflow-x:auto; }
+                    </style></head><body>${html}</body></html>`;
+
+                iframeDoc.open();
+                iframeDoc.write(iframeHTML);
+                iframeDoc.close();
+                iframeDoc.designMode = 'on';
+
+                iframeDoc.body.addEventListener('input', () => { saveIframeSelection(); syncFromPreviewDebounced(); setUnsyncedState(); updateToolbarState(); });
+                iframeDoc.addEventListener('selectionchange', () => { saveIframeSelection(); updateToolbarState(); });
+                iframeDoc.addEventListener('mouseup', () => saveIframeSelection());
+                iframeDoc.addEventListener('keyup', () => saveIframeSelection());
+                iframeDoc.addEventListener('focus', () => { activeEditor = 'preview'; updateModeIndicator(); }, true);
+
+                lastRenderTime = Date.now();
+                hasRendered = true;
+                setSyncedState();
+                statusRenderText.textContent = 'Rendered just now';
+                $('#statusRender').className = 'status-bar-section success';
+
+                showToast('Rendered successfully', 'success', 1800);
+            } catch (err) {
+                console.error('Render error:', err);
+                showError(`Render failed: ${err.message}`);
+                showToast('Render failed', 'error');
             }
-            
-            // --- Event Listeners ---
-            renderButton.addEventListener('click', updatePreview);
-            syncButton.addEventListener('click', syncFromPreview);
-            downloadButton.addEventListener('click', downloadHtml);
+        }
 
-            // Universal Toolbar Listeners
-            editorToolbar.addEventListener('click', (event) => {
-                const target = event.target.closest('.toolbar-button');
-                if (target?.dataset.command) { executeCommand(target.dataset.command); }
-            });
-
-            fontColorPicker.addEventListener('change', (e) => executeCommand('foreColor', e.target.value));
-            fontBgColorPicker.addEventListener('change', (e) => executeCommand('backColor', e.target.value));
-            fontSizeSelect.addEventListener('change', (e) => executeCommand('fontSize', e.target.value));
-            fontSelect.addEventListener('change', (e) => executeCommand('fontName', e.target.value));
-            clearFormatBtn.addEventListener('click', () => { executeCommand('removeFormat'); showMessage('Formatting cleared.', 1500); });
-            
-            // Focus tracking to set the active editor
-            htmlCodeTextArea.addEventListener('focus', () => { activeEditor = 'code'; });
-
-            // File Upload Listeners
-            uploadHtmlButton.addEventListener('click', () => htmlFileInput.click());
-            htmlFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-
-            // Drag and Drop Listeners
-            codePanel.addEventListener('dragover', (e) => {
-                e.preventDefault(); e.stopPropagation();
-                codePanel.classList.add('drag-over');
-            });
-            codePanel.addEventListener('dragleave', (e) => {
-                e.preventDefault(); e.stopPropagation();
-                codePanel.classList.remove('drag-over');
-            });
-            codePanel.addEventListener('drop', (e) => {
-                e.preventDefault(); e.stopPropagation();
-                codePanel.classList.remove('drag-over');
-                handleFile(e.dataTransfer.files[0]);
-            });
-
-            // Mobile Toggle Listener
-            mobileViewToggle.addEventListener('click', (e) => {
-                if (e.target.matches('.toggle-button')) {
-                    const view = e.target.dataset.view;
-                    mobileViewToggle.querySelector('.active').classList.remove('active');
-                    e.target.classList.add('active');
-                    codePanel.classList.toggle('mobile-hidden', view !== 'code');
-                    previewPanel.classList.toggle('mobile-hidden', view !== 'preview');
-                }
-            });
-
-            // Modal Listeners
-            insertLinkBtn.addEventListener('click', () => { openModal(linkModal); linkURLInput.focus(); });
-            confirmLinkBtn.addEventListener('click', () => {
-                const url = linkURLInput.value;
-                if (!url) { showMessage('Please enter a URL.', 2000); return; }
-                if (currentRange) {
-                    previewFrame.contentWindow.getSelection().addRange(currentRange);
-                }
-                executeCommand('createLink', url);
-                showMessage('Link inserted.', 1500);
-                closeModal(linkModal);
-            });
-            insertImageBtn.addEventListener('click', () => { openModal(imageModal); imageURLInput.focus(); });
-            confirmImageBtn.addEventListener('click', () => {
-                const url = imageURLInput.value;
-                if (!url) { showMessage('Please enter an image URL.', 2000); return; }
-                if (currentRange) {
-                    previewFrame.contentWindow.getSelection().addRange(currentRange);
-                }
-                executeCommand('insertImage', url);
-                showMessage('Image inserted.', 1500);
-                closeModal(imageModal);
-            });
-            
-            closeButtons.forEach(btn => btn.addEventListener('click', (e) => closeModal(e.target.closest('.modal'))));
-            window.addEventListener('click', (e) => {
-                if (e.target === linkModal) closeModal(linkModal);
-                if (e.target === imageModal) closeModal(imageModal);
-            });
-            
-            // Re-initialize the layout on window resize (debounced)
-            window.addEventListener('resize', debounce(handleLayoutChange, 250));
-
-            // --- Initial Setup ---
-            function populateFontSelect() {
-                googleFonts.sort().forEach(font => {
-                    const option = new Option(font, font);
-                    fontSelect.appendChild(option);
-                });
+        function syncFromPreview() {
+            if (!iframeDoc) { showToast('No preview to sync from', 'warning'); return; }
+            try {
+                htmlCode.value = iframeDoc.body.innerHTML;
+                setSyncedState();
+                showToast('Code synced from preview', 'success', 1800);
+            } catch (err) {
+                console.error('Sync error:', err);
+                showToast('Sync failed', 'error');
             }
+        }
 
-            populateFontSelect();
-            updatePreview();
-            handleLayoutChange(); // Initial call to set up the correct layout
+        const syncFromPreviewDebounced = debounce(syncFromPreview, 600);
+
+        function downloadHtml() {
+            try {
+                const blob = new Blob([htmlCode.value], { type: 'text/html' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'page.html';
+                a.click();
+                URL.revokeObjectURL(a.href);
+                showToast('Downloaded page.html', 'success');
+            } catch (err) {
+                showToast('Download failed', 'error');
+            }
+        }
+
+        /* ==========================================================
+           FILE UPLOAD & DRAG-DROP
+           ========================================================== */
+        function handleFile(file) {
+            if (!file || !file.name.match(/\.html?$/i)) {
+                showToast('Please select an .html file', 'warning');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                htmlCode.value = e.target.result;
+                showToast(`Loaded ${file.name}`, 'success');
+                renderPreview();
+            };
+            reader.onerror = () => showToast(`Failed to read ${file.name}`, 'error');
+            reader.readAsText(file);
+        }
+
+        codePane.addEventListener('dragover', (e) => { e.preventDefault(); codePane.classList.add('drag-over'); });
+        codePane.addEventListener('dragleave', (e) => { e.preventDefault(); codePane.classList.remove('drag-over'); });
+        codePane.addEventListener('drop', (e) => { e.preventDefault(); codePane.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+
+        /* ==========================================================
+           MODALS
+           ========================================================== */
+        function openModal(modal) {
+            modal.classList.add('show');
+            const firstInput = modal.querySelector('.form-input');
+            if (firstInput) setTimeout(() => firstInput.focus(), 80);
+
+            if (activeEditor === 'preview' && iframeDoc) {
+                const sel = previewFrame.contentWindow.getSelection();
+                if (sel && sel.rangeCount > 0) currentRange = sel.getRangeAt(0);
+            }
+        }
+
+        function closeModal(modal) {
+            modal.classList.remove('show');
+            modal.querySelectorAll('.form-input').forEach(i => { i.value = ''; i.classList.remove('valid', 'invalid'); });
+            modal.querySelectorAll('.form-hint').forEach(h => { h.textContent = ''; h.classList.remove('error'); });
+            currentRange = null;
+        }
+
+        function validateURLInput(input, hint) {
+            const val = input.value.trim();
+            if (!val) { input.classList.remove('valid', 'invalid'); hint.textContent = ''; hint.classList.remove('error'); return false; }
+            if (isValidUrl(val)) {
+                input.classList.remove('invalid'); input.classList.add('valid');
+                hint.textContent = ''; hint.classList.remove('error');
+                return true;
+            }
+            input.classList.remove('valid'); input.classList.add('invalid');
+            hint.textContent = 'Please enter a valid URL'; hint.classList.add('error');
+            return false;
+        }
+
+        linkURLInput.addEventListener('input', () => validateURLInput(linkURLInput, linkURLHint));
+        imageURLInput.addEventListener('input', () => validateURLInput(imageURLInput, imageURLHint));
+
+        // Close modals
+        $$('[data-close-modal]').forEach(btn => {
+            btn.addEventListener('click', (e) => closeModal(e.target.closest('.modal-overlay')));
         });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (linkModal.classList.contains('show')) closeModal(linkModal);
+                if (imageModal.classList.contains('show')) closeModal(imageModal);
+                closeOverflow();
+            }
+        });
+
+        [linkModal, imageModal].forEach(m => {
+            m.addEventListener('click', (e) => { if (e.target === m) closeModal(m); });
+        });
+
+        // Enter submits modals
+        linkModal.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); confirmLinkBtn.click(); }});
+        imageModal.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); confirmImageBtn.click(); }});
+
+        /* ==========================================================
+           LAYOUT ENGINE
+           ========================================================== */
+        function handleLayout() {
+            const w = window.innerWidth;
+
+            if (w >= BREAKPOINT_DESKTOP) {
+                mobileTabs.style.display = 'none';
+                codePane.classList.remove('mobile-hidden');
+                previewPane.classList.remove('mobile-hidden');
+
+                if (!splitInstance) {
+                    const savedSizes = localStorage.getItem('editor-split');
+                    const sizes = savedSizes ? JSON.parse(savedSizes) : [40, 60];
+                    splitInstance = Split(['#codePane', '#previewPane'], {
+                        sizes,
+                        minSize: 280,
+                        gutterSize: 8,
+                        direction: 'horizontal',
+                        cursor: 'ew-resize',
+                        onDragEnd: (sizes) => localStorage.setItem('editor-split', JSON.stringify(sizes))
+                    });
+                }
+            } else {
+                mobileTabs.style.display = 'block';
+                if (splitInstance) { splitInstance.destroy(); splitInstance = null; }
+
+                const activeView = mobileTabs.querySelector('.mobile-tab.active')?.dataset.view || 'code';
+                codePane.classList.toggle('mobile-hidden', activeView !== 'code');
+                previewPane.classList.toggle('mobile-hidden', activeView !== 'preview');
+            }
+        }
+
+        /* ==========================================================
+           RENDER TIME UPDATER
+           ========================================================== */
+        setInterval(() => {
+            if (lastRenderTime && hasRendered) {
+                statusRenderText.textContent = `Rendered ${timeAgo(lastRenderTime)}`;
+            }
+        }, 5000);
+
+        /* ==========================================================
+           FONT SELECT POPULATION
+           ========================================================== */
+        function populateFonts() {
+            googleFonts.sort().forEach(f => fontSelect.appendChild(new Option(f, f)));
+        }
+
+        /* ==========================================================
+           EVENT LISTENERS
+           ========================================================== */
+
+        // Render
+        renderButton.addEventListener('click', renderPreview);
+        renderBtnPane.addEventListener('click', renderPreview);
+        mobileFab.addEventListener('click', renderPreview);
+
+        // Sync
+        syncButton.addEventListener('click', syncFromPreview);
+        syncBtnPane.addEventListener('click', syncFromPreview);
+        syncBtnPreviewHeader.addEventListener('click', syncFromPreview);
+
+        // Download
+        downloadButton.addEventListener('click', () => { downloadHtml(); closeOverflow(); });
+        downloadBtnPane.addEventListener('click', downloadHtml);
+
+        // Upload
+        uploadHtmlButton.addEventListener('click', () => { htmlFileInput.click(); closeOverflow(); });
+        uploadBtnInline.addEventListener('click', () => htmlFileInput.click());
+        htmlFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        // Reset
+        resetSampleBtn.addEventListener('click', () => {
+            htmlCode.value = SAMPLE_HTML;
+            renderPreview();
+            closeOverflow();
+            showToast('Reset to sample', 'info');
+        });
+
+        // Theme
+        themeToggleBtn.addEventListener('click', () => { toggleTheme(); closeOverflow(); });
+
+        // Overflow menu
+        overflowMenuBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleOverflow(); });
+        document.addEventListener('click', (e) => {
+            if (!overflowMenu.contains(e.target) && e.target !== overflowMenuBtn) closeOverflow();
+        });
+
+        // Toolbar commands
+        commandBar.addEventListener('click', (e) => {
+            const btn = e.target.closest('.toolbar-btn[data-command]');
+            if (btn) executeCommand(btn.dataset.command);
+        });
+
+        // Save iframe selection before ANY toolbar control steals focus
+        [fontColorPicker, fontBgColorPicker, divBgColorPicker].forEach(picker => {
+            picker.addEventListener('mousedown', () => saveIframeSelection());
+            picker.addEventListener('focus', () => saveIframeSelection());
+        });
+        [fontSizeSelect, fontSelect, blockFormatSelect].forEach(sel => {
+            sel.addEventListener('mousedown', () => saveIframeSelection());
+            sel.addEventListener('focus', () => saveIframeSelection());
+        });
+
+        // Also save selection when any toolbar button is about to be clicked
+        commandBar.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.toolbar-btn')) saveIframeSelection();
+        });
+
+        fontColorPicker.addEventListener('change', (e) => executeCommand('foreColor', e.target.value));
+        fontBgColorPicker.addEventListener('change', (e) => executeCommand('backColor', e.target.value));
+        fontSizeSelect.addEventListener('change', (e) => executeCommand('fontSize', e.target.value));
+        fontSelect.addEventListener('change', (e) => executeCommand('fontName', e.target.value));
+        clearFormatBtn.addEventListener('click', () => { executeCommand('removeFormat'); showToast('Formatting cleared', 'info', 1500); });
+
+        // Block format (headings, paragraph, blockquote, pre)
+        blockFormatSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (!val) {
+                executeCommand('formatBlock', 'div');
+            } else {
+                executeCommand('formatBlock', val);
+            }
+        });
+
+        // Block background color
+        divBgColorPicker.addEventListener('change', (e) => {
+            if (activeEditor === 'preview' && iframeDoc) {
+                restoreIframeSelection();
+                const sel = previewFrame.contentWindow.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                    let node = sel.anchorNode;
+                    while (node && node.nodeType !== 1) node = node.parentNode;
+                    if (node && node !== iframeDoc.body) {
+                        node.style.backgroundColor = e.target.value;
+                        saveIframeSelection();
+                        syncFromPreviewDebounced();
+                        setUnsyncedState();
+                    }
+                }
+            }
+        });
+
+        // Focus tracking
+        htmlCode.addEventListener('focus', () => { activeEditor = 'code'; updateModeIndicator(); });
+        htmlCode.addEventListener('input', () => setUnsyncedState());
+
+        // Insert link
+        insertLinkBtn.addEventListener('click', () => openModal(linkModal));
+        confirmLinkBtn.addEventListener('click', () => {
+            const url = linkURLInput.value.trim();
+            if (!url) { linkURLHint.textContent = 'URL is required'; linkURLHint.classList.add('error'); linkURLInput.classList.add('invalid'); return; }
+            if (!isValidUrl(url)) { linkURLHint.textContent = 'Please enter a valid URL'; linkURLHint.classList.add('error'); linkURLInput.classList.add('invalid'); return; }
+
+            if (currentRange) {
+                const sel = previewFrame.contentWindow.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(currentRange);
+            }
+            executeCommand('createLink', url);
+            showToast('Link inserted', 'success', 1500);
+            closeModal(linkModal);
+        });
+
+        // Insert image
+        insertImageBtn.addEventListener('click', () => openModal(imageModal));
+        confirmImageBtn.addEventListener('click', () => {
+            const url = imageURLInput.value.trim();
+            if (!url) { imageURLHint.textContent = 'URL is required'; imageURLHint.classList.add('error'); imageURLInput.classList.add('invalid'); return; }
+            if (!isValidUrl(url)) { imageURLHint.textContent = 'Please enter a valid URL'; imageURLHint.classList.add('error'); imageURLInput.classList.add('invalid'); return; }
+
+            if (currentRange) {
+                const sel = previewFrame.contentWindow.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(currentRange);
+            }
+
+            if (activeEditor === 'preview' && iframeDoc) {
+                const alt = imageAltInput.value.trim() || 'Image';
+                const imgTag = `<img src="${url}" alt="${alt}" style="max-width:100%;height:auto;display:block;margin:0.75rem 0;border-radius:8px;">`;
+                iframeDoc.execCommand('insertHTML', false, imgTag);
+                syncFromPreviewDebounced();
+            } else {
+                const alt = imageAltInput.value.trim() || 'Image';
+                const tag = `<img src="${url}" alt="${alt}" style="max-width:100%;height:auto;">`;
+                const pos = htmlCode.selectionStart;
+                htmlCode.value = htmlCode.value.substring(0, pos) + tag + htmlCode.value.substring(pos);
+            }
+
+            showToast('Image inserted', 'success', 1500);
+            closeModal(imageModal);
+        });
+
+        // Mobile tabs
+        mobileTabs.addEventListener('click', (e) => {
+            const tab = e.target.closest('.mobile-tab');
+            if (!tab) return;
+            mobileTabs.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            localStorage.setItem('editor-mobile-tab', tab.dataset.view);
+            handleLayout();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                renderPreview();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                openModal(linkModal);
+            }
+        });
+
+        // Resize handler
+        window.addEventListener('resize', debounce(handleLayout, 200));
+
+        // Error banner dismiss
+        errorBannerDismiss.addEventListener('click', hideError);
+
+        /* ==========================================================
+           INIT
+           ========================================================== */
+        initTheme();
+        populateFonts();
+        renderPreview();
+        handleLayout();
+        updateModeIndicator();
+
+        // Restore mobile tab
+        const savedTab = localStorage.getItem('editor-mobile-tab');
+        if (savedTab) {
+            const tabEl = mobileTabs.querySelector(`[data-view="${savedTab}"]`);
+            if (tabEl) {
+                mobileTabs.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
+                tabEl.classList.add('active');
+            }
+        }
+    });
     </script>
 </body>
 </html>
-
