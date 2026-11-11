@@ -1,0 +1,372 @@
+<!doctype html>
+<!-- Pagewise: a page-by-page editor for HTML documents and slide decks.
+     Material Next design language: independent, built on M3; not an official Google design. -->
+<html lang="en" data-expressiveness="expressive">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pagewise</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,300..900&display=swap">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="palettes.css">
+<link rel="stylesheet" href="mn.css">
+<script>
+  // Apply the saved look before the first paint
+  try {
+    const r = document.documentElement, p = localStorage.getItem('pw:palette'), t = localStorage.getItem('pw:tones');
+    if (p) r.dataset.palette = p;
+    if (t) r.dataset.tones = t;
+  } catch {}
+</script>
+<link rel="stylesheet" href="app.css">
+<script src="mn.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<!-- ============================== HOME ============================== -->
+<section id="home" class="home">
+  <div class="home-inner mn-stack" style="--gap: 32px">
+    <header class="home-head">
+      <span class="brand-mark" aria-hidden="true"><i data-icon="file"></i></span>
+      <div>
+        <h1 class="mn-headline-m">Pagewise</h1>
+        <p class="mn-body-l mn-muted">Edit any web page like a document, one page at a time</p>
+      </div>
+      <span class="mn-spacer"></span>
+      <button class="mn-icon-btn tonal" data-look aria-label="Appearance" title="Appearance"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01a1.5 1.5 0 0 1 1.13-2.49H16a5 5 0 0 0 5-5c0-4.42-4.03-8-9-8Zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg></button>
+    </header>
+
+    <label class="mn-drop home-drop" id="homeDrop">
+      <input type="file" hidden accept=".html,.htm,text/html" id="homeFileInput">
+      <i data-icon="upload"></i>
+      <span class="idle">Drop an .html file here, or choose one</span>
+      <span class="over">Release to open it</span>
+    </label>
+
+    <div class="mn-row home-actions">
+      <button class="mn-btn lg" id="openBtn"><i data-icon="folder"></i>Open file</button>
+      <button class="mn-btn tonal lg" id="blankBtn"><i data-icon="add"></i>New document</button>
+    </div>
+
+    <p class="home-error mn-body-m" id="homeError" role="alert" hidden></p>
+
+    <section class="mn-section" id="recentSection" hidden>
+      <h2 class="mn-section-title">Continue where you left off</h2>
+      <div class="mn-list" id="recentList"></div>
+    </section>
+  </div>
+</section>
+
+<!-- ============================== EDITOR ============================== -->
+<section id="editor" class="editor" hidden>
+  <!-- Top bar -->
+  <header class="ed-bar">
+    <button class="mn-icon-btn" id="homeBtn" aria-label="Close and go to start"><i data-icon="back"></i></button>
+    <div class="ed-title">
+      <span class="ed-name mn-title-m" id="docName">Untitled</span>
+      <span class="ed-state mn-label-m" id="docState" data-state="saved"><span class="dot"></span><span id="docStateText">Saved</span></span>
+    </div>
+    <span class="mn-spacer"></span>
+    <button class="mn-icon-btn" id="undoBtn" aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)" disabled><i data-icon="undo"></i></button>
+    <button class="mn-icon-btn flip" id="redoBtn" aria-label="Redo (Ctrl+Y)" title="Redo (Ctrl+Y)" disabled><i data-icon="undo"></i></button>
+    <button class="mn-btn tonal hide-compact" id="presentBtn"><i data-icon="play"></i>Present</button>
+    <button class="mn-btn" id="saveBtn"><i data-icon="download"></i><span id="saveLabel">Save</span></button>
+    <button class="mn-icon-btn" popovertarget="moreMenu" aria-label="More options"><i data-icon="more"></i></button>
+    <div popover class="mn-menu" id="moreMenu">
+      <button id="presentMenuBtn" class="show-compact"><i data-icon="play"></i>Present</button>
+      <button id="saveCopyBtn"><i data-icon="download"></i>Download a copy</button>
+      <button id="printBtn"><i data-icon="file"></i>Print or save as PDF</button>
+      <hr>
+      <button id="codeBtn"><i data-icon="edit"></i>Edit this page’s code</button>
+      <hr>
+      <button data-look><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01a1.5 1.5 0 0 1 1.13-2.49H16a5 5 0 0 0 5-5c0-4.42-4.03-8-9-8Zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg>Appearance</button>
+    </div>
+  </header>
+
+  <!-- Ribbon -->
+  <div class="ribbon" id="ribbon">
+    <div class="rb-tabs" role="tablist" aria-label="Tools">
+      <button role="tab" class="rb-tab" data-tab="text" data-tone="pink" aria-selected="true">Text</button>
+      <button role="tab" class="rb-tab" data-tab="insert" data-tone="blue" aria-selected="false">Insert</button>
+      <button role="tab" class="rb-tab" data-tab="page" data-tone="amber" aria-selected="false">Page</button>
+      <button role="tab" class="rb-tab ctx" data-tab="picture" data-tone="violet" aria-selected="false" hidden>Picture</button>
+      <button role="tab" class="rb-tab ctx" data-tab="box" data-tone="teal" aria-selected="false" hidden>Box</button>
+    </div>
+
+    <div class="rb-panel" data-panel="text" data-tone="pink">
+      <div class="rb-group">
+        <button class="rb-btn wide" popovertarget="styleMenu" id="styleBtn"><span id="styleLabel">Text style</span><i data-icon="expand"></i></button>
+        <div popover class="mn-menu style-menu" id="styleMenu">
+          <button data-style="h1"><span class="sm-h1">Title</span></button>
+          <button data-style="h2"><span class="sm-h2">Heading</span></button>
+          <button data-style="h3"><span class="sm-h3">Subheading</span></button>
+          <button data-style="p"><span class="sm-p">Normal text</span></button>
+          <button data-style="blockquote"><span class="sm-q">Quote</span></button>
+        </div>
+      </div>
+      <div class="rb-group" role="group" aria-label="Emphasis">
+        <button class="rb-btn icon" data-cmd="bold" aria-label="Bold (Ctrl+B)" title="Bold (Ctrl+B)"><b>B</b></button>
+        <button class="rb-btn icon" data-cmd="italic" aria-label="Italic (Ctrl+I)" title="Italic (Ctrl+I)"><i class="ital">I</i></button>
+        <button class="rb-btn icon" data-cmd="underline" aria-label="Underline (Ctrl+U)" title="Underline (Ctrl+U)"><u>U</u></button>
+        <button class="rb-btn icon" data-cmd="strikeThrough" aria-label="Strikethrough" title="Strikethrough"><s>S</s></button>
+      </div>
+      <div class="rb-group" role="group" aria-label="Size and font">
+        <button class="rb-btn icon" data-act="smaller" aria-label="Smaller text" title="Smaller text"><span class="aa">A</span><sub>−</sub></button>
+        <button class="rb-btn icon" data-act="bigger" aria-label="Bigger text" title="Bigger text"><span class="aa big">A</span><sup>+</sup></button>
+        <button class="rb-btn wide" popovertarget="fontMenu" title="Font"><span id="fontLabel">Font</span><i data-icon="expand"></i></button>
+        <div popover class="mn-menu" id="fontMenu">
+          <button data-font=""><span>Keep the document’s font</span></button>
+          <hr>
+          <button data-font="Arial, Helvetica, sans-serif"><span style="font-family: Arial, Helvetica, sans-serif">Clean (Arial)</span></button>
+          <button data-font="Georgia, 'Times New Roman', serif"><span style="font-family: Georgia, serif">Classic (Georgia)</span></button>
+          <button data-font="'Trebuchet MS', 'Segoe UI', sans-serif"><span style="font-family: 'Trebuchet MS', sans-serif">Friendly (Trebuchet)</span></button>
+          <button data-font="Verdana, Geneva, sans-serif"><span style="font-family: Verdana, sans-serif">Wide (Verdana)</span></button>
+          <button data-font="'Courier New', Courier, monospace"><span style="font-family: 'Courier New', monospace">Typewriter (Courier)</span></button>
+        </div>
+      </div>
+      <div class="rb-group" role="group" aria-label="Colour">
+        <button class="rb-btn icon swatch-btn" popovertarget="colorMenu" aria-label="Text colour" title="Text colour"><span class="aa">A</span><span class="bar" id="colorBar"></span></button>
+        <button class="rb-btn icon swatch-btn" popovertarget="hiliteMenu" aria-label="Highlight" title="Highlight"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="m15.2 3.6 5.2 5.2-9 9H6.2v-5.2l9-9Zm0 2.8-7 7v2.4h2.4l7-7-2.4-2.4ZM3 20h18v2H3z"/></svg><span class="bar hl" id="hiliteBar"></span></button>
+        <div popover class="mn-menu swatch-menu" id="colorMenu"><div class="swatches" data-swatch="color"></div></div>
+        <div popover class="mn-menu swatch-menu" id="hiliteMenu"><div class="swatches" data-swatch="hilite"></div></div>
+      </div>
+      <div class="rb-group" role="group" aria-label="Alignment">
+        <button class="rb-btn icon" data-align="left" aria-label="Align left" title="Align left"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 4h18v2H3zm0 5h12v2H3zm0 5h18v2H3zm0 5h12v2H3z"/></svg></button>
+        <button class="rb-btn icon" data-align="center" aria-label="Centre" title="Centre"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 4h18v2H3zm3 5h12v2H6zm-3 5h18v2H3zm3 5h12v2H6z"/></svg></button>
+        <button class="rb-btn icon" data-align="right" aria-label="Align right" title="Align right"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 4h18v2H3zm6 5h12v2H9zm-6 5h18v2H3zm6 5h12v2H9z"/></svg></button>
+        <button class="rb-btn icon" data-align="justify" aria-label="Justify" title="Justify"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 4h18v2H3zm0 5h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg></button>
+      </div>
+      <div class="rb-group">
+        <button class="rb-btn" data-act="link" title="Link (Ctrl+K)"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M10.6 13.4a1 1 0 0 0 1.4 0l3.6-3.6a3 3 0 0 0-4.2-4.2L9.9 7.1l1.4 1.4 1.5-1.5a1 1 0 0 1 1.4 1.4L10.6 12a1 1 0 0 0 0 1.4ZM13.4 10.6a1 1 0 0 0-1.4 0l-3.6 3.6a3 3 0 0 0 4.2 4.2l1.5-1.5-1.4-1.4-1.5 1.5a1 1 0 0 1-1.4-1.4l3.6-3.6a1 1 0 0 0 0-1.4Z"/></svg>Link</button>
+        <button class="rb-btn" data-act="clear" title="Remove bold, colours and sizes"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16.2 3.6 21 8.4a2 2 0 0 1 0 2.8L13.2 19H20v2H8.8L3 15.2a2 2 0 0 1 0-2.8l10.4-10.4a2 2 0 0 1 2.8 0ZM8 11.4l-3.6 3.6 4.2 4.2h1.8l2.4-2.4L8 11.4Z"/></svg>Clear style</button>
+      </div>
+    </div>
+
+    <div class="rb-panel" data-panel="insert" data-tone="blue" hidden>
+      <div class="rb-group">
+        <button class="rb-btn big" data-insert="p"><span class="ins-ico">¶</span>Text</button>
+        <button class="rb-btn big" data-insert="h2"><span class="ins-ico">H</span>Heading</button>
+        <button class="rb-btn big" data-insert="ul"><i data-icon="list"></i>List</button>
+        <button class="rb-btn big" data-insert="img"><i data-icon="image"></i>Picture</button>
+        <button class="rb-btn big" data-insert="table"><i data-icon="grid"></i>Table</button>
+        <button class="rb-btn big" data-insert="hr"><span class="ins-ico">—</span>Line</button>
+        <button class="rb-btn big" data-insert="button"><span class="ins-ico pill">Go</span>Button</button>
+      </div>
+      <p class="rb-hint mn-body-s" id="insertHint">Adds below what you selected</p>
+    </div>
+
+    <div class="rb-panel" data-panel="page" data-tone="amber" hidden>
+      <div class="rb-group">
+        <button class="rb-btn big" data-page="add"><i data-icon="add"></i>New page</button>
+        <button class="rb-btn big" data-page="dup"><i data-icon="copy"></i>Duplicate</button>
+        <button class="rb-btn big" data-page="up"><svg viewBox="0 0 22 22" width="22" height="22" fill="currentColor"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg>Move earlier</button>
+        <button class="rb-btn big" data-page="down"><svg viewBox="0 0 22 22" width="22" height="22" fill="currentColor"><path d="M8.6 16.6 10 18l6-6-6-6-1.4 1.4 4.6 4.6z"/></svg>Move later</button>
+        <button class="rb-btn big swatch-btn" popovertarget="pageBgMenu"><span class="ins-ico fill"></span>Background</button>
+        <div popover class="mn-menu swatch-menu" id="pageBgMenu"><div class="swatches" data-swatch="pagebg"></div></div>
+        <button class="rb-btn big danger" data-page="del"><i data-icon="delete"></i>Delete page</button>
+      </div>
+      <p class="rb-hint mn-body-s" id="pageHint" hidden>This file is one long page</p>
+    </div>
+
+    <div class="rb-panel" data-panel="picture" data-tone="violet" hidden>
+      <div class="rb-group">
+        <button class="rb-btn big" data-pic="replace"><i data-icon="image"></i>Replace</button>
+        <button class="rb-btn big" data-pic="alt"><i data-icon="edit"></i>Description</button>
+      </div>
+      <div class="rb-group" role="group" aria-label="Picture size">
+        <button class="rb-btn" data-pic-size="25">Small</button>
+        <button class="rb-btn" data-pic-size="50">Medium</button>
+        <button class="rb-btn" data-pic-size="75">Large</button>
+        <button class="rb-btn" data-pic-size="100">Full width</button>
+        <button class="rb-btn" data-resetsize title="Remove sizes you dragged">Original size</button>
+      </div>
+      <div class="rb-group">
+        <button class="rb-btn big" data-box="dup"><i data-icon="copy"></i>Duplicate</button>
+        <button class="rb-btn big danger" data-box="del"><i data-icon="delete"></i>Delete</button>
+      </div>
+      <div class="rb-group" role="group" aria-label="Arrange">
+        <button class="rb-btn big" data-multi aria-pressed="false" title="Or hold Shift and click"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 3h8v8H3zm2 2v4h4V5zm8-2h8v8h-8zm2 2v4h4V5zM3 13h8v8H3zm2 2v4h4v-4zm11-2h2v3h3v2h-3v3h-2v-3h-3v-2h3z"/></svg>Select several</button>
+        <button class="rb-btn big" data-dist="h" title="Equal gaps from left to right (3 or more selected)"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M2 3h2v18H2zm18 0h2v18h-2zM7 7h3v10H7zm7 0h3v10h-3z"/></svg>Space across</button>
+        <button class="rb-btn big" data-dist="v" title="Equal gaps from top to bottom (3 or more selected)"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 2h18v2H3zm0 18h18v2H3zM7 7h10v3H7zm0 7h10v3H7z"/></svg>Space down</button>
+        <span class="mn-tag sel-count" hidden>2 selected</span>
+      </div>
+    </div>
+
+    <div class="rb-panel" data-panel="box" data-tone="teal" hidden>
+      <div class="rb-group">
+        <button class="rb-btn big swatch-btn" popovertarget="boxBgMenu"><span class="ins-ico fill"></span>Fill colour</button>
+        <div popover class="mn-menu swatch-menu" id="boxBgMenu"><div class="swatches" data-swatch="boxbg"></div></div>
+        <button class="rb-btn big swatch-btn" popovertarget="boxFgMenu"><span class="ins-ico">A</span>Text colour</button>
+        <div popover class="mn-menu swatch-menu" id="boxFgMenu"><div class="swatches" data-swatch="boxfg"></div></div>
+      </div>
+      <div class="rb-group">
+        <button class="rb-btn big" data-box="up"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="m12 5 6 6-1.4 1.4L13 8.8V19h-2V8.8l-3.6 3.6L6 11z"/></svg>Move up</button>
+        <button class="rb-btn big" data-box="down"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="m12 19-6-6 1.4-1.4 3.6 3.6V5h2v10.2l3.6-3.6L18 13z"/></svg>Move down</button>
+        <button class="rb-btn big" data-box="dup"><i data-icon="copy"></i>Duplicate</button>
+        <button class="rb-btn big" data-box="parent"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 3h6v2H5v4H3zm12 0h6v6h-2V5h-4zM3 15h2v4h4v2H3zm16 0h2v6h-6v-2h4z"/></svg>Bigger area</button>
+        <button class="rb-btn big danger" data-box="del"><i data-icon="delete"></i>Delete</button>
+      </div>
+      <div class="rb-group">
+        <button class="rb-btn big" data-resetsize title="Remove sizes you dragged"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>Original size</button>
+      </div>
+      <div class="rb-group" role="group" aria-label="Arrange">
+        <button class="rb-btn big" data-multi aria-pressed="false" title="Or hold Shift and click"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 3h8v8H3zm2 2v4h4V5zm8-2h8v8h-8zm2 2v4h4V5zM3 13h8v8H3zm2 2v4h4v-4zm11-2h2v3h3v2h-3v3h-2v-3h-3v-2h3z"/></svg>Select several</button>
+        <button class="rb-btn big" data-dist="h" title="Equal gaps from left to right (3 or more selected)"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M2 3h2v18H2zm18 0h2v18h-2zM7 7h3v10H7zm7 0h3v10h-3z"/></svg>Space across</button>
+        <button class="rb-btn big" data-dist="v" title="Equal gaps from top to bottom (3 or more selected)"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 2h18v2H3zm0 18h18v2H3zM7 7h10v3H7zm0 7h10v3H7z"/></svg>Space down</button>
+        <span class="mn-tag sel-count" hidden>2 selected</span>
+      </div>
+      <div class="rb-group table-only" hidden>
+        <button class="rb-btn big" data-table="row"><i data-icon="add"></i>Row</button>
+        <button class="rb-btn big" data-table="col"><i data-icon="add"></i>Column</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body: pages + canvas -->
+  <div class="ed-body">
+    <aside class="pages" aria-label="Pages">
+      <div class="pages-head">
+        <span class="mn-title-s">Pages</span>
+        <span class="mn-tag" id="pageCount">1</span>
+      </div>
+      <ol class="page-list" id="pageList"></ol>
+      <button class="mn-btn tonal sm add-page" data-page="add"><i data-icon="add"></i>New page</button>
+    </aside>
+
+    <main class="canvas" id="canvas">
+      <div class="hint-chip mn-label-l" data-once="click-text" id="hintChip"><i data-icon="edit"></i>Click any text to change it</div>
+      <div class="frame-wrap" id="frameWrap">
+        <iframe id="view" title="Page you are editing" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
+      </div>
+      <div class="canvas-loading" id="canvasLoading" hidden><span class="mn-loader" style="--size: 48px"></span></div>
+      <nav class="page-nav" aria-label="Page navigation">
+        <button class="mn-icon-btn" id="prevPage" aria-label="Previous page"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
+        <button class="page-num mn-label-l mn-num" id="pageNum" aria-label="Show all pages">Page 1 of 1</button>
+        <button class="mn-icon-btn" id="nextPage" aria-label="Next page"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M8.6 16.6 10 18l6-6-6-6-1.4 1.4 4.6 4.6z"/></svg></button>
+        <button class="mn-icon-btn" id="zoomBtn" aria-label="Show at real size" title="Show at real size" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.5 6.5 0 1 0 9.5 16a6.47 6.47 0 0 0 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0A4.5 4.5 0 1 1 14 9.5 4.49 4.49 0 0 1 9.5 14Zm.5-7H9v2H7v1h2v2h1v-2h2V9h-2Z"/></svg></button>
+      </nav>
+      <div class="pages-scrim" id="pagesScrim" hidden></div>
+    </main>
+  </div>
+</section>
+
+<!-- ============================== SHEETS ============================== -->
+<dialog class="mn-sheet" id="linkSheet">
+  <form method="dialog" class="mn-stack" style="--gap: 16px" id="linkForm">
+    <h2 class="mn-title-l">Link</h2>
+    <label class="mn-field"><input id="linkText" placeholder=" " autocomplete="off"><span>Text to show</span></label>
+    <label class="mn-field"><input id="linkUrl" placeholder=" " autocomplete="off" inputmode="url"><span>Web address</span><small id="linkErr"></small></label>
+    <div class="actions">
+      <button class="mn-btn text danger-text" value="remove" id="linkRemove" type="button" hidden>Remove link</button>
+      <span class="mn-spacer"></span>
+      <button class="mn-btn text" value="cancel" formnovalidate>Cancel</button>
+      <button class="mn-btn" value="ok" id="linkOk">Add link</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mn-sheet" id="altSheet">
+  <form method="dialog" class="mn-stack" style="--gap: 16px">
+    <h2 class="mn-title-l">Describe this picture</h2>
+    <p class="mn-body-m mn-muted">Read aloud to people who can’t see it</p>
+    <label class="mn-field"><input id="altText" placeholder=" " autocomplete="off"><span>Description</span></label>
+    <div class="actions">
+      <button class="mn-btn text" value="cancel">Cancel</button>
+      <button class="mn-btn" value="ok">Save description</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mn-sheet" id="labelSheet">
+  <form method="dialog" class="mn-stack" style="--gap: 16px">
+    <h2 class="mn-title-l">Change label</h2>
+    <label class="mn-field"><input id="labelText" placeholder=" " autocomplete="off"><span>Label in the drawing</span></label>
+    <div class="actions">
+      <button class="mn-btn text" value="cancel">Cancel</button>
+      <button class="mn-btn" value="ok">Update label</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mn-sheet wide" id="codeSheet">
+  <form method="dialog" class="mn-stack" style="--gap: 16px">
+    <h2 class="mn-title-l">Page code</h2>
+    <p class="mn-body-m mn-muted">For people who know HTML. Undo brings back the old version</p>
+    <textarea id="codeText" class="code-area" spellcheck="false" aria-label="HTML of this page"></textarea>
+    <small class="code-err" id="codeErr"></small>
+    <div class="actions">
+      <button class="mn-btn text" value="cancel">Cancel</button>
+      <button class="mn-btn" value="ok">Apply code</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mn-sheet" id="leaveSheet">
+  <form method="dialog" class="mn-stack" style="--gap: 16px">
+    <h2 class="mn-title-l">Save before closing?</h2>
+    <p class="mn-body-m mn-muted" id="leaveText">Your changes stay in this browser as a draft either way</p>
+    <div class="actions">
+      <button class="mn-btn text" value="cancel">Keep editing</button>
+      <button class="mn-btn tonal" value="leave">Close</button>
+      <button class="mn-btn" value="save">Save and close</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mn-sheet" id="lookSheet">
+  <form method="dialog" class="mn-stack look" style="--gap: 22px">
+    <h2 class="mn-title-l">Appearance</h2>
+
+    <section class="mn-stack" style="--gap: 10px">
+      <h3 class="mn-title-s">Colour</h3>
+      <div class="palettes" role="radiogroup" aria-label="Colour">
+        <button type="button" class="pal" role="radio" data-pick="bloom"><span class="chips"><i></i><i></i><i></i></span>Rose</button>
+        <button type="button" class="pal" role="radio" data-pick="tide"><span class="chips"><i></i><i></i><i></i></span>Ocean</button>
+        <button type="button" class="pal" role="radio" data-pick="aurora"><span class="chips"><i></i><i></i><i></i></span>Lagoon</button>
+        <button type="button" class="pal" role="radio" data-pick="citrus"><span class="chips"><i></i><i></i><i></i></span>Sunflower</button>
+        <button type="button" class="pal" role="radio" data-pick="nocturne"><span class="chips"><i></i><i></i><i></i></span>Violet</button>
+        <button type="button" class="pal" role="radio" data-pick="graphite"><span class="chips"><i></i><i></i><i></i></span>Slate</button>
+      </div>
+    </section>
+
+    <section class="mn-stack" style="--gap: 10px">
+      <h3 class="mn-title-s">Light or dark</h3>
+      <div class="mn-seg" role="group" aria-label="Light or dark" id="modeSeg">
+        <button type="button" aria-pressed="false" data-mode="light"><i data-icon="light"></i>Light</button>
+        <button type="button" aria-pressed="false" data-mode="dark"><i data-icon="dark"></i>Dark</button>
+        <button type="button" aria-pressed="true" data-mode="system">Automatic</button>
+      </div>
+    </section>
+
+    <section class="mn-stack" style="--gap: 10px">
+      <h3 class="mn-title-s">Colour strength</h3>
+      <div class="mn-seg" role="group" aria-label="Colour strength" id="dialSeg">
+        <button type="button" aria-pressed="false" data-dial="calm">Soft</button>
+        <button type="button" aria-pressed="false" data-dial="standard">Balanced</button>
+        <button type="button" aria-pressed="true" data-dial="expressive">Vivid</button>
+      </div>
+    </section>
+
+    <section class="mn-stack" style="--gap: 10px">
+      <h3 class="mn-title-s">Tool colours</h3>
+      <div class="mn-seg" role="group" aria-label="Tool colours" id="tonesSeg">
+        <button type="button" aria-pressed="true" data-tones="multi">A colour per tab</button>
+        <button type="button" aria-pressed="false" data-tones="mono">One colour</button>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button class="mn-btn text" type="button" id="lookReset">Reset</button>
+      <span class="mn-spacer"></span>
+      <button class="mn-btn" value="ok">Done</button>
+    </div>
+  </form>
+</dialog>
+
+<input type="file" id="imageInput" accept="image/*" hidden>
+<input type="file" id="fileInput" accept=".html,.htm,text/html" hidden>
+</body>
+</html>
