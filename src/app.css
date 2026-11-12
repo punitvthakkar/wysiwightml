@@ -43,6 +43,8 @@ body { margin: 0; background: var(--md-sys-color-surface); color: var(--md-sys-c
   margin: 0; padding: 12px 16px; border-radius: var(--r-m, 12px);
   background: var(--md-sys-color-error-container); color: var(--md-sys-color-on-error-container);
 }
+.recent-head { align-items: center; }
+.open-url-addr { word-break: break-all; color: var(--md-sys-color-on-surface-variant); }
 .recent-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .recent-lead { background: var(--t-c) !important; color: var(--on-t-c) !important; }
 
@@ -223,6 +225,8 @@ body { margin: 0; background: var(--md-sys-color-surface); color: var(--md-sys-c
 }
 .frame-wrap { position: absolute; left: 16px; right: 16px; top: 16px; bottom: 72px; overflow: hidden; border-radius: var(--r-l, 16px); }
 #view { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; background: transparent; }
+/* Hidden frame where the page's own code runs sealed off; it stays laid out so that code can measure the page */
+.run-frame { position: absolute; left: 0; top: 0; border: 0; opacity: 0; pointer-events: none; z-index: -1; }
 .canvas-loading { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--md-sys-color-surface-container) 70%, transparent); }
 .page-nav {
   position: absolute; left: 50%; bottom: 12px; translate: -50% 0;

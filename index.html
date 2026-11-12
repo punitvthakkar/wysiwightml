@@ -3050,6 +3050,8 @@ body { margin: 0; background: var(--md-sys-color-surface); color: var(--md-sys-c
   margin: 0; padding: 12px 16px; border-radius: var(--r-m, 12px);
   background: var(--md-sys-color-error-container); color: var(--md-sys-color-on-error-container);
 }
+.recent-head { align-items: center; }
+.open-url-addr { word-break: break-all; color: var(--md-sys-color-on-surface-variant); }
 .recent-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .recent-lead { background: var(--t-c) !important; color: var(--on-t-c) !important; }
 
@@ -3230,6 +3232,8 @@ body { margin: 0; background: var(--md-sys-color-surface); color: var(--md-sys-c
 }
 .frame-wrap { position: absolute; left: 16px; right: 16px; top: 16px; bottom: 72px; overflow: hidden; border-radius: var(--r-l, 16px); }
 #view { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; background: transparent; }
+/* Hidden frame where the page's own code runs sealed off; it stays laid out so that code can measure the page */
+.run-frame { position: absolute; left: 0; top: 0; border: 0; opacity: 0; pointer-events: none; z-index: -1; }
 .canvas-loading { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--md-sys-color-surface-container) 70%, transparent); }
 .page-nav {
   position: absolute; left: 50%; bottom: 12px; translate: -50% 0;
@@ -3595,13 +3599,21 @@ body:has(#editor:not([hidden])) .mn-snackbar { bottom: 76px; }
    - SOURCE: the opened file is parsed with DOMParser into an inert document (scripts never run there).
      Every element in <body> gets a data-wy id. Saving serializes this document, minus the ids,
      so the doctype, <head>, styles and scripts come back exactly as they were.
-   - VIEW: a sandboxed iframe renders a copy of the source with the file's own scripts running
-     (so drawings made by code still show). A tiny bootstrap script forwards every input event to
-     the editor first, so the page's own keyboard/click handlers (slide navigation etc.) stay quiet.
+   - SECURITY: an opened file is untrusted. None of its code ever runs on Pagewise's own origin.
+     1. RUN: if the file has scripts, it runs first in a hidden iframe with an opaque origin
+        (sandbox="allow-scripts", no allow-same-origin). From there it can't reach Pagewise, its
+        drafts or the file on disk. Its only output is the finished page, posted back as HTML
+        (canvases become pictures), so drawings made by code still show.
+     2. VIEW: the editor shows that HTML (or the source itself, when there are no scripts) in an
+        iframe where scripts are disabled (sandbox="allow-same-origin" only) and drives it from here.
+     3. Because step 1 decides what the view contains, anything copied from the view back into the
+        source is cleaned first (cleanFlush) and only values the editor itself set are copied.
+     4. Present and Print open the file in a new tab inside an opaque-origin sandbox.
    - Edits happen in the view and are mirrored into the source by id. Text typed into a block is
      copied back with flush(); attribute/structure changes are applied to both with mirror().
    - PAGES: found in the source (.slide, .page, section[data-title], …, or repeated sections);
-     the view hides all pages except the current one with editor-only CSS. */
+     the view hides all pages except the current one with editor-only CSS.
+   - DRAFTS: only work that isn't saved to a file is kept, in IndexedDB, and it is deleted once saved. */
 (() => {
 'use strict';
 
@@ -3619,6 +3631,7 @@ const S = {
   doc: null, doctype: '', name: 'Untitled.html', handle: null, baseHref: null, draftId: null,
   pages: [], cur: 0, single: false,
   hist: [], hi: -1, dirty: false, nextId: 1, pageVer: {},
+  pool: null, editSeq: 0, draftSeq: 0, draftHasOrig: false,
 };
 const V = { win: null, doc: null, ready: false, gen: 0, scale: 1 };       // live view
 const E = { el: null, dirty: false, start: null, range: null, link: null }; // text being edited
@@ -3641,9 +3654,11 @@ const curViewEl = () => vq(curId());
 function parse(text) {
   return new DOMParser().parseFromString(text, 'text/html');
 }
-function assignIds(root) {
-  if (root.nodeType === 1 && !idOf(root)) root.setAttribute('data-wy', newId());
-  root.querySelectorAll?.('*').forEach(el => { if (!idOf(el)) el.setAttribute('data-wy', newId()); });
+// New content always gets fresh ids, so ids written into a file or into pasted code can never
+// collide with (and take over) elements elsewhere in the document.
+function assignIds(root, { keepRoot = false } = {}) {
+  if (root.nodeType === 1 && !(keepRoot && idOf(root))) root.setAttribute('data-wy', newId());
+  root.querySelectorAll?.('*').forEach(el => el.setAttribute('data-wy', newId()));
 }
 const VOID = new Set('area base br col embed hr img input keygen link meta param source track wbr basefont bgsound frame'.split(' '));
 const RAW = new Set('style script xmp iframe noembed noframes plaintext'.split(' '));
@@ -3652,10 +3667,14 @@ const escText = t => t.replace(/&/g, '&amp;').replace(/\u00a0/g, '&nbsp;').repla
 const escAttr = t => t.replace(/&/g, '&amp;').replace(/\u00a0/g, '&nbsp;').replace(/"/g, '&quot;');
 // HTML serializer that stays close to how files are usually written: empty SVG/MathML elements
 // are written self-closing (<path/>), and the line break between <html> and <head> is kept.
-function serNode(n, keepIds, out, plain) {
+// `pool` (undo history only): long attribute values and script/style bodies, usually embedded
+// pictures and libraries, are stored once and written as short tokens, so each undo step costs
+// about the size of the text rather than the size of the whole file.
+function serNode(n, keepIds, out, plain, pool) {
   if (n.nodeType === 3) {
     const p = n.parentNode;
-    out.push(p && p.namespaceURI === HTML_NS && RAW.has(p.localName) ? n.data : escText(n.data));
+    const d = SER_TRIM && SER_TRIM.node === n ? n.data.slice(0, n.data.length - SER_TRIM.n) : n.data;
+    out.push(p && p.namespaceURI === HTML_NS && RAW.has(p.localName) ? d : escText(d));
     return;
   }
   if (n.nodeType === 8) { out.push(`<!--${n.data}-->`); return; }
@@ -3664,27 +3683,64 @@ function serNode(n, keepIds, out, plain) {
   let s = '<' + tag;
   for (const a of n.attributes) {
     if (!keepIds && a.name === 'data-wy') continue;
-    s += ' ' + a.name + '="' + escAttr(a.value) + '"';
+    s += ' ' + a.name + '="' + (pool && a.value.length > POOL_MIN ? poolToken(pool, a.value) : escAttr(a.value)) + '"';
   }
   const html = n.namespaceURI === HTML_NS;
   if (html && VOID.has(tag)) { out.push(s + '>'); return; }
   const kids = html && tag === 'template' ? n.content.childNodes : n.childNodes;
   if (!html && !kids.length) { out.push(s + '/>'); return; }
   out.push(s + '>');
+  if (pool && html && RAW.has(tag)) {
+    const body = n.textContent;
+    if (body.length > POOL_MIN) { out.push(poolToken(pool, body), '</' + tag + '>'); return; }
+  }
   if (!plain && html && tag === 'html' && S.htmlGap && kids[0]?.nodeType === 1 && kids[0].localName === 'head') out.push(S.htmlGap);
-  for (const k of kids) serNode(k, keepIds, out, plain);
+  for (const k of kids) serNode(k, keepIds, out, plain, tag === 'template' ? null : pool);
   out.push('</' + tag + '>');
 }
-function serialize(keepIds) {
+// Whitespace after </body> or </html> is parsed into <body>. Writing the body's trailing whitespace
+// after </html> (and nothing else) makes parse(serialize(doc)) give back exactly doc, so undo,
+// drafts and repeated saves never grow the file.
+let SER_TRIM = null;
+function serialize(keepIds, pool) {
   const out = [];
-  let first = true;
-  for (const n of S.doc.childNodes) {
-    if (!first) out.push('\n');
-    first = false;
-    if (n.nodeType === 10) out.push(S.doctype || '<!DOCTYPE html>');
-    else serNode(n, keepIds, out);
+  let first = true, tail = '';
+  const last = S.doc.body?.lastChild;
+  if (last?.nodeType === 3) { const m = /[ \t\n\f\r]+$/.exec(last.data); if (m) { tail = m[0]; SER_TRIM = { node: last, n: tail.length }; } }
+  try {
+    for (const n of S.doc.childNodes) {
+      if (!first) out.push('\n');
+      first = false;
+      if (n.nodeType === 10) out.push(S.doctype || '<!DOCTYPE html>');
+      else serNode(n, keepIds, out, false, pool);
+    }
+  } finally { SER_TRIM = null; }
+  return out.join('') + tail;
+}
+const POOL_MIN = 2048;
+const newPool = () => ({ nonce: Math.random().toString(36).slice(2, 8), map: new Map(), vals: [] });
+function poolToken(pool, v) {
+  let i = pool.map.get(v);
+  if (i == null) { i = pool.vals.length; pool.vals.push(v); pool.map.set(v, i); }
+  return '' + pool.nonce + i + '';
+}
+function unpool(doc, pool) {
+  const re = new RegExp('^\\uE000' + pool.nonce + '(\\d+)\\uE001$');
+  const val = s => { if (s.charCodeAt(0) !== 0xE000) return null; const m = re.exec(s); return m ? pool.vals[+m[1]] : null; };
+  for (const el of doc.querySelectorAll('*')) {
+    for (const a of el.attributes) { const v = val(a.value); if (v != null) a.value = v; }
+    if (RAW.has(el.localName) && el.namespaceURI === HTML_NS && el.childNodes.length === 1 && el.firstChild.nodeType === 3) {
+      const v = val(el.firstChild.data); if (v != null) el.firstChild.data = v;
+    }
   }
-  return out.join('') + '\n';
+}
+// 53-bit string hash (cyrb53), used to compare subtrees without keeping copies of them
+function hash53(str) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36) + ':' + str.length;
 }
 
 /* ---- Faithful save: reuse the original text of everything that did not change ----
@@ -3756,15 +3812,22 @@ function mapSpans(doc, text) {
   return spans;
 }
 const spanKey = el => el.getAttribute('data-wy') || (el.localName === 'html' ? '#html' : el.localName === 'head' ? '#head' : '');
+// A fingerprint of every element's subtree, built bottom-up: each element hashes its own start tag
+// plus its children's fingerprints, so the work and memory stay proportional to the file size.
+// (A collision could only make the rebuilt text differ, which the re-parse check below catches.)
 function normMap(root) {
   const map = new Map();
   const walk = el => {
-    const out = [];
-    serNode(el, false, out, true);
-    const str = out.join('');
-    map.set(spanKey(el), str);
-    for (const c of (el.localName === 'template' ? [] : el.children)) walk(c);
-    return str;
+    const parts = [startTagOf(el)];
+    const kids = el.namespaceURI === HTML_NS && el.localName === 'template' ? el.content.childNodes : el.childNodes;
+    for (const k of kids) {
+      if (k.nodeType === 1) parts.push('\u0001' + walk(k));
+      else if (k.nodeType === 3) parts.push('\u0002' + k.data);
+      else if (k.nodeType === 8) parts.push('\u0003' + k.data);
+    }
+    const h = hash53(parts.join('\u0000'));
+    map.set(spanKey(el), h);
+    return h;
   };
   walk(root);
   return map;
@@ -3891,30 +3954,49 @@ function pageTitles() {
 }
 
 /* ============================== OPEN / NEW ============================== */
-function loadText(text, { name = 'Untitled.html', handle = null, baseHref = null, draftId = null } = {}) {
+// Parse a file and record where each element sits in its text, for faithful saving. Ids are
+// handed out in document order (w1, w2, …), so the same text always gets the same ids; a draft
+// relies on that to line its saved document up with the original file again.
+function prepare(text) {
+  const m = text.match(/^﻿?\s*(<!doctype[^>]*>)/i);
+  const g = text.match(/<html\b[^>]*>(\s*)<head\b/i);
+  const doc = parse(text);
+  let n = 1;
+  const give = el => el.setAttribute('data-wy', 'w' + (n++).toString(36));
+  give(doc.body); doc.body.querySelectorAll('*').forEach(give);
+  let orig = null;
+  try {
+    const spans = mapSpans(doc, text);
+    const byId = new Map();
+    [doc.documentElement, ...doc.documentElement.querySelectorAll('*')].forEach(el => byId.set(spanKey(el), el.cloneNode(false)));
+    orig = { text, spans, norm: normMap(doc.documentElement), byId };
+  } catch (e) { console.warn('Pagewise: could not map source', e); }
+  return { doc, nextId: n, orig, doctype: m ? m[1] : '<!DOCTYPE html>', htmlGap: g ? g[1] : '' };
+}
+function loadText(text, { name = 'Untitled.html', handle = null, baseHref = null, draft = null } = {}) {
   if (!text || !text.trim()) { homeError('This file is empty. Choose a file that has a page in it.'); return false; }
   finishEditing(false);
-  const m = text.match(/^﻿?\s*(<!doctype[^>]*>)/i);
-  S.doctype = m ? m[1] : '<!DOCTYPE html>';
-  const g = text.match(/<html\b[^>]*>(\s*)<head\b/i);
-  S.htmlGap = g ? g[1] : '';
-  S.doc = parse(text);
-  S.nextId = 1;
-  assignIds(S.doc.body);
-  S.orig = null;
-  try {
-    const spans = mapSpans(S.doc, text);
-    const byId = new Map();
-    [S.doc.documentElement, ...S.doc.documentElement.querySelectorAll('*')].forEach(el => byId.set(spanKey(el), el.cloneNode(false)));
-    S.orig = { text, spans, norm: normMap(S.doc.documentElement), byId };
-  } catch (e) { console.warn('Pagewise: could not map source', e); }
-  const { pages, single } = findPages(S.doc);
-  S.pages = pages.map(idOf); S.single = single; S.cur = 0;
+  const P = prepare(text);
+  S.doctype = P.doctype; S.htmlGap = P.htmlGap; S.orig = P.orig; S.origText = text;
+  S.pool = newPool();
+  S.doc = P.doc; S.nextId = P.nextId;
+  let pages = null;
+  if (draft?.html) {
+    // A draft is the edited document (with its ids) on top of the original file text
+    S.doc = parse(draft.html);
+    S.nextId = Math.max(P.nextId, +draft.nextId || 1);
+    if (!S.doc.body.hasAttribute('data-wy')) assignIds(S.doc.body);
+    pages = (draft.pages || []).filter(id => typeof id === 'string' && sq(id));
+  }
+  if (pages?.length) { S.pages = pages; S.single = pages.length === 1 && pages[0] === idOf(S.doc.body); }
+  else { const f = findPages(S.doc); S.pages = f.pages.map(idOf); S.single = f.single; }
+  S.cur = draft ? clamp(+draft.cur || 0, 0, S.pages.length - 1) : 0;
   S.name = name; S.handle = handle; S.baseHref = baseHref;
-  S.draftId = draftId || ('d' + Date.now().toString(36));
+  S.draftId = draft?.id || ('d' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+  S.draftHasOrig = !!draft;
   S.pageVer = {};
   S.hist = []; S.hi = -1; pushHistory();
-  S.dirty = false;
+  S.dirty = !!draft; S.editSeq = S.draftSeq = 0;
   SEL = null;
   enterEditor();
   return true;
@@ -3966,13 +4048,32 @@ async function openFile(file, handle = null) {
   try { loadText(await file.text(), { name: file.name, handle }); }
   catch { homeError(`“${file.name}” couldn’t be read. Try opening it again.`); }
 }
+function webUrl(url) {
+  try { const u = new URL(url, location.href); return /^https?:$/.test(u.protocol) ? u : null; } catch { return null; }
+}
 async function openUrl(url) {
+  const u = webUrl(url);
+  if (!u) { homeError('Only web addresses (http or https) can be opened.'); return; }
   try {
-    const r = await fetch(url);
+    // No cookies or logins are sent along to other sites
+    const r = await fetch(u.href, { credentials: u.origin === location.origin ? 'same-origin' : 'omit', redirect: 'follow' });
     if (!r.ok) throw new Error(r.status);
-    const name = decodeURIComponent(new URL(url, location.href).pathname.split('/').pop() || 'page.html');
-    loadText(await r.text(), { name, baseHref: new URL(url, location.href).href });
+    let name = 'page.html';
+    try { name = decodeURIComponent(u.pathname.split('/').pop()) || name; } catch {}
+    loadText(await r.text(), { name, baseHref: u.href });
   } catch { homeError('That link couldn’t be opened. Check the address and try again.'); }
+}
+// ?open=<url>: a link can ask to open a file. Files from other sites are only opened after the
+// person confirms, and every file runs sealed off from Pagewise either way.
+function openFromLink(url) {
+  const u = webUrl(url);
+  if (!u) { homeError('That link asks to open something that isn’t a web address.'); return; }
+  if (u.origin === location.origin) { openUrl(u.href); return; }
+  $('#openUrlHost').textContent = u.host;
+  $('#openUrlAddr').textContent = u.href.length > 140 ? u.href.slice(0, 139) + '…' : u.href;
+  const d = mn.sheet('openUrlSheet');
+  d.returnValue = 'cancel';
+  d.addEventListener('close', () => { if (d.returnValue === 'open') openUrl(u.href); }, { once: true });
 }
 function homeError(msg) {
   const el = $('#homeError');
@@ -3982,13 +4083,13 @@ function homeError(msg) {
 
 /* ============================== HISTORY ============================== */
 function pushHistory() {
-  const html = serialize(true);
+  const html = serialize(true, S.pool);
   const cur = S.hist[S.hi];
   if (cur && cur.html === html) { cur.pages = [...S.pages]; cur.cur = S.cur; return false; }
   S.hist = S.hist.slice(0, S.hi + 1);
   S.hist.push({ html, pages: [...S.pages], cur: S.cur });
   let size = S.hist.reduce((n, h) => n + h.html.length, 0);
-  while (S.hist.length > 2 && (S.hist.length > 80 || size > 60e6)) { size -= S.hist.shift().html.length; }
+  while (S.hist.length > 2 && (S.hist.length > 80 || size > 40e6)) { size -= S.hist.shift().html.length; }
   S.hi = S.hist.length - 1;
   return true;
 }
@@ -4008,6 +4109,7 @@ function restore(i) {
   S.hi = i;
   const h = S.hist[i];
   S.doc = parse(h.html);
+  unpool(S.doc, S.pool);
   S.pages = h.pages.filter(id => sq(id));
   if (!S.pages.length) S.pages = [idOf(S.doc.body)];
   S.cur = clamp(h.cur, 0, S.pages.length - 1);
@@ -4028,43 +4130,126 @@ function updateUndo() {
 /* ============================== DIRTY / DRAFTS ============================== */
 function setDirty(d, label) {
   S.dirty = d;
+  if (d) S.editSeq++;
   const st = $('#docState');
   st.dataset.state = d ? 'dirty' : 'saved';
   $('#docStateText').textContent = label || (d ? 'Unsaved changes' : 'Saved');
 }
 function setState(state, text) { $('#docState').dataset.state = state; $('#docStateText').textContent = text; }
 
-const DRAFTS = 'pw:drafts';
+// Small preferences (look and feel) only; documents never go into localStorage.
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch {} },
 };
-function draftsList() { try { return JSON.parse(store.get(DRAFTS) || '[]'); } catch { return []; } }
-function saveDraft() {
-  if (!S.doc) return;
-  const html = serialize(false);
-  let list = draftsList().filter(d => d.id !== S.draftId);
-  list.unshift({ id: S.draftId, name: S.name, at: Date.now(), pages: S.pages.length, saved: !S.dirty });
-  while (list.length > 6) { const old = list.pop(); store.del('pw:draft:' + old.id); }
-  if (!store.set('pw:draft:' + S.draftId, html)) {
-    // Too big for browser storage: keep the list entry out so we never offer a broken draft.
-    list = list.filter(d => d.id !== S.draftId);
-  }
-  store.set(DRAFTS, JSON.stringify(list));
+
+/* ---- Drafts: unsaved work only, in IndexedDB ----
+   meta: { id, name, at, pages }   body[id]: { html, pages, cur, nextId, baseHref }   body[id + ':orig']: original file text
+   A draft is written only while there are changes that aren't in a file, and deleted as soon as
+   they are saved. Old drafts expire. File handles are never stored. */
+const DRAFT_MAX = 8, DRAFT_DAYS = 30;
+const Drafts = (() => {
+  let dbp = null;
+  const req = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const done = t => new Promise((res, rej) => { t.oncomplete = () => res(); t.onerror = t.onabort = () => rej(t.error); });
+  const db = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = indexedDB.open('pagewise', 1);
+    r.onupgradeneeded = () => { r.result.createObjectStore('meta', { keyPath: 'id' }); r.result.createObjectStore('body'); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => { dbp = null; rej(r.error); };
+    r.onblocked = () => { dbp = null; rej(new Error('blocked')); };
+  }));
+  return {
+    async list() {
+      const d = await db();
+      const all = await req(d.transaction('meta').objectStore('meta').getAll());
+      return all.sort((a, b) => b.at - a.at);
+    },
+    async put(meta, body, orig) {
+      const d = await db();
+      const t = d.transaction(['meta', 'body'], 'readwrite');
+      t.objectStore('meta').put(meta);
+      t.objectStore('body').put(body, meta.id);
+      if (orig !== undefined) t.objectStore('body').put(orig, meta.id + ':orig');
+      return done(t);
+    },
+    async get(id) {
+      const d = await db();
+      const t = d.transaction(['meta', 'body']);
+      const [meta, body, orig] = await Promise.all([req(t.objectStore('meta').get(id)), req(t.objectStore('body').get(id)), req(t.objectStore('body').get(id + ':orig'))]);
+      return meta && body ? { meta, body, orig } : null;
+    },
+    async del(ids) {
+      const d = await db();
+      const t = d.transaction(['meta', 'body'], 'readwrite');
+      [].concat(ids).forEach(id => { t.objectStore('meta').delete(id); t.objectStore('body').delete(id); t.objectStore('body').delete(id + ':orig'); });
+      return done(t);
+    },
+    async trim() {
+      const list = await this.list();
+      const old = Date.now() - DRAFT_DAYS * 864e5;
+      const drop = list.filter((m, i) => i >= DRAFT_MAX || m.at < old).map(m => m.id);
+      if (drop.length) await this.del(drop);
+    },
+  };
+})();
+async function saveDraft() {
+  if (!S.doc || !S.dirty) return;
+  const seq = S.editSeq;
+  const meta = { id: S.draftId, name: S.name, at: Date.now(), pages: S.pages.length };
+  const body = { html: serialize(true), pages: [...S.pages], cur: S.cur, nextId: S.nextId, baseHref: S.baseHref };
+  const orig = S.draftHasOrig ? undefined : (S.origText ?? null);
+  try {
+    await Drafts.put(meta, body, orig);
+    S.draftHasOrig = true;
+    if (S.draftId === meta.id) S.draftSeq = Math.max(S.draftSeq, seq);
+    Drafts.trim().catch(() => {});
+  } catch (e) { console.warn('Pagewise: draft not kept', e); }
 }
 const saveDraftSoon = debounce(saveDraft, 1200);
-function removeDraft(id) {
-  const list = draftsList(); const item = list.find(d => d.id === id);
-  const html = store.get('pw:draft:' + id);
-  store.set(DRAFTS, JSON.stringify(list.filter(d => d.id !== id)));
-  store.del('pw:draft:' + id);
+function dropDraft() {
+  // The work is in a file now: nothing of it stays in the browser
+  saveDraftSoon.cancel();
+  const id = S.draftId;
+  S.draftHasOrig = false;
+  Drafts.del(id).catch(() => {});
+}
+async function removeDraft(id) {
+  const d = await Drafts.get(id).catch(() => null);
+  await Drafts.del(id).catch(() => {});
   renderRecents();
-  toast(`Removed ${item?.name || 'draft'}`, { action: 'Undo', onAction: () => {
-    if (html) store.set('pw:draft:' + id, html);
-    store.set(DRAFTS, JSON.stringify([item, ...draftsList()].filter(Boolean)));
+  toast(`Removed ${d?.meta.name || 'draft'}`, { action: 'Undo', onAction: async () => {
+    if (d) await Drafts.put(d.meta, d.body, d.orig ?? null).catch(() => {});
     renderRecents();
   } });
+}
+async function clearDrafts() {
+  const list = await Drafts.list().catch(() => []);
+  await Drafts.del(list.map(m => m.id)).catch(() => {});
+  renderRecents();
+  toast('Removed all unsaved work from this browser');
+}
+async function openDraft(id) {
+  const d = await Drafts.get(id).catch(() => null);
+  if (!d) { homeError('That draft couldn’t be found. It may have been removed in another tab.'); renderRecents(); return; }
+  const text = d.orig || d.body.html;
+  loadText(text, { name: d.meta.name, baseHref: d.body.baseHref || null, draft: { ...d.body, id, html: d.orig ? d.body.html : null } });
+  toast('Opened your unsaved work. Save asks where to put the file');
+}
+// Earlier versions kept full copies of every opened file in localStorage. Move unsaved ones to
+// IndexedDB, then remove all of them.
+async function migrateOldDrafts() {
+  let list;
+  try { list = JSON.parse(localStorage.getItem('pw:drafts') || 'null'); } catch { list = null; }
+  if (!Array.isArray(list)) return;
+  for (const d of list) {
+    const html = store.get('pw:draft:' + d?.id);
+    if (d && !d.saved && typeof html === 'string' && html.trim()) {
+      await Drafts.put({ id: String(d.id), name: String(d.name || 'Untitled.html'), at: +d.at || Date.now(), pages: +d.pages || 1 }, { html: null, pages: [], cur: 0, nextId: 1, baseHref: null }, html).catch(() => {});
+    }
+  }
+  try { Object.keys(localStorage).filter(k => k === 'pw:drafts' || k.startsWith('pw:draft:')).forEach(k => localStorage.removeItem(k)); } catch {}
 }
 function timeAgo(t) {
   const s = (Date.now() - t) / 1000;
@@ -4073,8 +4258,12 @@ function timeAgo(t) {
   if (s < 86400) return `${Math.round(s / 3600)} h ago`;
   return new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
-function renderRecents() {
-  const list = draftsList().filter(d => store.get('pw:draft:' + d.id) != null);
+let recentsGen = 0;
+async function renderRecents() {
+  const gen = ++recentsGen;
+  await Drafts.trim().catch(() => {});
+  const list = await Drafts.list().catch(() => []);
+  if (gen !== recentsGen) return;
   $('#recentSection').hidden = !list.length;
   const box = $('#recentList'); box.innerHTML = '';
   const tones = ['pink', 'blue', 'teal', 'amber', 'violet'];
@@ -4082,15 +4271,17 @@ function renderRecents() {
     const row = document.createElement('div');
     row.className = 'mn-item'; row.dataset.tone = tones[i % tones.length];
     row.innerHTML = `<span class="lead recent-lead"></span><span class="text"><span class="title"></span><span class="sub recent-sub"></span></span><span class="trail"><button class="mn-icon-btn" aria-label="Remove from this list"><i data-icon="close"></i></button></span>`;
-    row.querySelector('.lead').textContent = (d.name || '?').trim()[0]?.toUpperCase() || '?';
-    row.querySelector('.title').textContent = d.name;
-    row.querySelector('.sub').textContent = `${d.pages} ${d.pages === 1 ? 'page' : 'pages'} · edited ${timeAgo(d.at)}${d.saved ? '' : ' · not saved to file'}`;
+    const name = String(d.name || 'Untitled.html');
+    row.querySelector('.lead').textContent = name.trim()[0]?.toUpperCase() || '?';
+    row.querySelector('.title').textContent = name;
+    row.querySelector('.trail button').setAttribute('aria-label', `Remove unsaved work in ${name}`);
+    const n = +d.pages || 1;
+    row.querySelector('.sub').textContent = `${n} ${n === 1 ? 'page' : 'pages'} · changed ${timeAgo(d.at)} · not saved to a file`;
     row.style.cursor = 'pointer';
-    row.addEventListener('click', e => {
-      if (e.target.closest('.trail button')) { removeDraft(d.id); return; }
-      const html = store.get('pw:draft:' + d.id);
-      if (html) { loadText(html, { name: d.name, draftId: d.id }); if (!d.saved) setDirty(true); }
-    });
+    row.tabIndex = 0; row.setAttribute('role', 'button');
+    const open = () => openDraft(d.id);
+    row.addEventListener('click', e => { if (e.target.closest('.trail button')) { removeDraft(d.id); return; } open(); });
+    row.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === row) { e.preventDefault(); open(); } });
     box.append(row);
   });
   window.mn?.icons && document.querySelectorAll('#recentList [data-icon]').forEach(el => { el.innerHTML = mn.icon(el.dataset.icon); });
@@ -4116,7 +4307,7 @@ async function save({ copy = false } = {}) {
       }
       const w = await S.handle.createWritable();
       await w.write(html); await w.close();
-      setDirty(false); saveDraft();
+      setDirty(false); dropDraft();
       return true;
     } catch (e) {
       setState('error', 'Not saved');
@@ -4132,28 +4323,53 @@ async function save({ copy = false } = {}) {
     } catch (e) { if (e.name === 'AbortError') return false; }
   }
   download(html, S.name);
-  setDirty(false, 'Downloaded'); saveDraft();
+  setDirty(false, 'Downloaded'); dropDraft();
   toast(`Downloaded ${S.name}. Find it in your Downloads folder`);
   return true;
 }
-function presentHtml() {
-  let html = faithfulSerialize();
-  if (S.baseHref && !/<base\s/i.test(html)) html = html.replace(/<head([^>]*)>/i, `<head$1><base href="${esc(S.baseHref)}">`);
-  return html;
+// Scripts that run sealed off (opaque origin) can't use browser storage; give them a stand-in
+// that keeps values in memory, so pages that remember things don't stop with an error.
+const STORAGE_SHIM = `function pwShim(n){try{window[n].length;return}catch(e){}var m=new Map(),s={get length(){return m.size},key:function(i){var k=Array.from(m.keys())[i];return k===undefined?null:k},getItem:function(k){k=String(k);return m.has(k)?m.get(k):null},setItem:function(k,v){m.set(String(k),String(v))},removeItem:function(k){m.delete(String(k))},clear:function(){m.clear()}};try{Object.defineProperty(window,n,{value:s,configurable:true})}catch(e){}}pwShim('localStorage');pwShim('sessionStorage');try{document.cookie}catch(e){try{Object.defineProperty(document,'cookie',{get:function(){return''},set:function(){},configurable:true})}catch(e){}}`;
+function presentHtml({ print = false } = {}) {
+  const doc = parse(faithfulSerialize());
+  const head = doc.head || doc.documentElement.insertBefore(doc.createElement('head'), doc.body);
+  if (S.baseHref && !head.querySelector('base')) { const b = doc.createElement('base'); b.setAttribute('href', S.baseHref); head.prepend(b); }
+  const sc = doc.createElement('script');
+  sc.textContent = STORAGE_SHIM + (print ? 'addEventListener("load",function(){setTimeout(function(){print()},600)});' : '');
+  head.prepend(sc);
+  return (doc.doctype ? (S.doctype || '<!DOCTYPE html>') + '\n' : '') + doc.documentElement.outerHTML;
+}
+// The file runs in a new tab, inside an iframe with an opaque origin: its scripts work (slide
+// shows, animations), but it can't reach Pagewise, its drafts or the file on disk. The tab
+// itself is a blank page that Pagewise fills; it is cut off from this tab (no opener).
+const PRESENT_SANDBOX = 'allow-scripts allow-modals allow-popups allow-popups-to-escape-sandbox allow-forms allow-pointer-lock allow-top-navigation-by-user-activation';
+function openSealed(html) {
+  const w = window.open('', '_blank');
+  if (!w) { toast('Your browser blocked the new tab. Allow pop-ups for this page and try again'); return null; }
+  try { w.opener = null; } catch {}
+  const d = w.document;
+  d.title = S.name;
+  const st = d.createElement('style');
+  st.textContent = 'html,body{margin:0;height:100%;background:#fff}iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}';
+  d.head.append(st);
+  const f = d.createElement('iframe');
+  f.setAttribute('sandbox', PRESENT_SANDBOX);
+  f.setAttribute('allow', 'fullscreen; autoplay; clipboard-write; picture-in-picture');
+  f.setAttribute('allowfullscreen', '');
+  f.setAttribute('referrerpolicy', 'no-referrer');
+  f.title = S.name;
+  f.srcdoc = html;
+  d.body.append(f);
+  f.addEventListener('load', () => { try { f.focus(); } catch {} }, { once: true });
+  return w;
 }
 function present() {
   if (E.el) finishEditing();
-  const url = URL.createObjectURL(new Blob([presentHtml()], { type: 'text/html' }));
-  const w = window.open(url, '_blank');
-  if (!w) toast('Your browser blocked the new tab. Allow pop-ups for this page and try again');
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  openSealed(presentHtml());
 }
 function printDoc() {
   if (E.el) finishEditing();
-  const url = URL.createObjectURL(new Blob([presentHtml()], { type: 'text/html' }));
-  const w = window.open(url, '_blank');
-  if (!w) { toast('Your browser blocked the new tab. Allow pop-ups for this page and try again'); return; }
-  w.addEventListener('load', () => setTimeout(() => w.print(), 600));
+  openSealed(presentHtml({ print: true }));
 }
 
 /* ============================== VIEW (iframe) ============================== */
@@ -4172,9 +4388,12 @@ html[data-wy-ready] [data-wy-page]:not([data-wy-current]),html[data-wy-ready] [d
 svg [data-wy-hover],svg[data-wy-hover]{outline:none!important;filter:drop-shadow(0 0 1.5px ${hov}) drop-shadow(0 0 1.5px ${hov})}
 svg [data-wy-sel],svg[data-wy-sel]{outline:none!important;filter:drop-shadow(0 0 2px ${sel}) drop-shadow(0 0 2px ${sel})}
 img[data-wy-hover]{cursor:pointer}
+noscript{display:none!important}
+canvas>*{display:none!important}canvas{color:transparent!important;font-size:0!important}
 `;
 }
-function buildViewHTML(gen) {
+// A copy of the source with the pages marked, ready to show
+function markedRoot() {
   const root = S.doc.documentElement.cloneNode(true);
   const q = id => root.getAttribute('data-wy') === id ? root : root.querySelector(`[data-wy="${cssEsc(id)}"]`);
   S.pages.forEach(id => q(id)?.setAttribute('data-wy-page', ''));
@@ -4182,17 +4401,95 @@ function buildViewHTML(gen) {
   if (cur) { cur.setAttribute('data-wy-current', ''); if (cur.classList.contains('slide')) cur.classList.add('is-active'); }
   let head = root.querySelector('head');
   if (!head) { head = S.doc.createElement('head'); root.prepend(head); }
-  const boot = S.doc.createElement('script');
-  boot.setAttribute('data-pw', '');
-  boot.textContent = `(function(){var G=${gen};['pointerdown','pointerup','pointermove','mousedown','mouseup','mousemove','click','dblclick','auxclick','contextmenu','keydown','keyup','keypress','wheel','touchstart','touchmove','touchend','dragstart','dragover','drop','paste','input','beforeinput','focusin','submit'].forEach(function(t){window.addEventListener(t,function(e){var b;try{b=parent.__pagewise}catch(x){}if(b)b(e,G)},{capture:true,passive:false})})})();`;
-  head.prepend(boot);
-  if (S.baseHref && !head.querySelector('base')) {
-    const base = S.doc.createElement('base'); base.setAttribute('href', S.baseHref); head.prepend(base);
-  }
-  const st = S.doc.createElement('style'); st.setAttribute('data-pw', ''); st.textContent = viewCSS();
-  head.append(st);
-  return (S.doc.doctype ? (S.doctype || '<!DOCTYPE html>') + '\n' : '') + root.outerHTML;
+  return { root, head };
 }
+const docText = root => (S.doc.doctype ? (S.doctype || '<!DOCTYPE html>') + '\n' : '') + root.outerHTML;
+function addBase(doc, head) {
+  if (!S.baseHref || head.querySelector('base')) return;
+  const b = doc.createElement('base'); b.setAttribute('href', S.baseHref); b.setAttribute('data-pw', ''); head.prepend(b);
+}
+// HTML for the editing view (scripts never run there). `snap` is the page as its own scripts left
+// it (from runSealed), or null to show the source as it is.
+function viewHTML(snap) {
+  let root, head, doc;
+  if (snap) { doc = snap; root = doc.documentElement; head = doc.head || root.insertBefore(doc.createElement('head'), root.firstChild); }
+  else { ({ root, head } = markedRoot()); doc = S.doc; }
+  // Nothing may take the view somewhere else
+  root.querySelectorAll('meta[http-equiv]').forEach(m => { if (/refresh/i.test(m.getAttribute('http-equiv'))) m.remove(); });
+  addBase(doc, head);
+  const st = doc.createElement('style'); st.setAttribute('data-pw', ''); st.textContent = viewCSS();
+  head.append(st);
+  return docText(root);
+}
+const JS_TYPE = /^(|text\/javascript|application\/javascript|module|text\/ecmascript|application\/ecmascript|text\/jscript|text\/livescript|text\/x-javascript|application\/x-javascript|text\/babel)$/i;
+function hasScripts(doc) {
+  if ([...doc.querySelectorAll('script')].some(s => JS_TYPE.test((s.getAttribute('type') || '').trim()))) return true;
+  for (const el of doc.querySelectorAll('*')) for (const a of el.attributes) if (/^on/i.test(a.name)) return true;
+  return false;
+}
+
+/* ---- Running the file's own scripts, sealed off ----
+   The page runs in a hidden iframe with sandbox="allow-scripts" and no allow-same-origin, so it has
+   an opaque origin: it can't touch Pagewise, browser storage for this site or the file on disk.
+   A small agent, injected first, waits until the page has loaded and gone quiet, then posts the
+   resulting HTML back. Pictures drawn on canvases are kept as images. The answer is treated as
+   untrusted: it is only ever shown in the script-free view, and cleaned before anything from it
+   is written into the document. */
+const RUN = { frame: null, gen: 0, finish: null };
+function sealedAgent(gen) {
+  return `(function(){${STORAGE_SHIM}
+var G=${gen},sent=false,loaded=false,qt=0;
+function ser(){var de=document.documentElement,live=[de].concat(Array.prototype.slice.call(de.querySelectorAll('*'))),root=de.cloneNode(true),cl=[root].concat(Array.prototype.slice.call(root.querySelectorAll('*')));
+if(cl.length===live.length)for(var i=0;i<live.length;i++){var el=live[i],c=cl[i],t=el.localName;
+if(t==='canvas'){try{var u=el.toDataURL();if(u&&u.length>30){var cw=el.offsetWidth||el.width,chh=el.offsetHeight||el.height,dsp=getComputedStyle(el).display;c.setAttribute('data-pw-canvas','');c.style.setProperty('background','url("'+u+'") 0 0/100% 100% no-repeat','important');c.style.setProperty('width',cw+'px','important');c.style.setProperty('height',chh+'px','important');if(dsp==='inline')c.style.setProperty('display','inline-block','important')}}catch(e){}}
+else if(t==='style'&&el.sheet&&!el.textContent.trim()){try{var r=el.sheet.cssRules,a=[];for(var j=0;j<r.length;j++)a.push(r[j].cssText);c.textContent=a.join('\\n')}catch(e){}}
+if(el.shadowRoot&&el.shadowRoot.mode==='open'){try{var tp=document.createElement('template');tp.setAttribute('shadowrootmode','open');tp.innerHTML=el.shadowRoot.innerHTML;c.insertBefore(tp,c.firstChild)}catch(e){}}}
+try{var ad=document.adoptedStyleSheets||[];if(ad.length){var s=document.createElement('style'),b=[];ad.forEach(function(sh){for(var j=0;j<sh.cssRules.length;j++)b.push(sh.cssRules[j].cssText)});s.textContent=b.join('\\n');var h=root.querySelector('head');if(h)h.appendChild(s)}}catch(e){}
+Array.prototype.forEach.call(root.querySelectorAll('[data-pw]'),function(x){x.parentNode.removeChild(x)});
+return root.outerHTML}
+function snap(){if(sent)return;sent=true;var html='';try{html=ser()}catch(e){}parent.postMessage({pw:'snap',gen:G,html:html},'*')}
+function arm(){clearTimeout(qt);qt=setTimeout(function(){if(loaded)snap()},300)}
+document.addEventListener('DOMContentLoaded',function(){try{new MutationObserver(arm).observe(document,{subtree:true,childList:true,attributes:true,characterData:true})}catch(e){}setTimeout(snap,8000)});
+addEventListener('load',function(){loaded=true;arm();setTimeout(snap,2500)});
+})();`;
+}
+function runSealed(gen, html) {
+  if (!RUN.frame) {
+    const f = document.createElement('iframe');
+    f.setAttribute('sandbox', 'allow-scripts');
+    f.setAttribute('aria-hidden', 'true');
+    f.setAttribute('referrerpolicy', 'no-referrer');
+    f.tabIndex = -1; f.title = 'Running the page’s code';
+    f.className = 'run-frame';
+    $('#frameWrap').prepend(f);
+    RUN.frame = f;
+  }
+  RUN.finish?.(null);
+  const f = RUN.frame, wrap = $('#frameWrap');
+  f.style.width = wrap.clientWidth + 'px'; f.style.height = wrap.clientHeight + 'px';
+  return new Promise(resolve => {
+    const t = setTimeout(() => finish(null, true), 15000);
+    const finish = (v, stuck = false) => {
+      if (RUN.finish !== finish) return;
+      RUN.finish = null; clearTimeout(t);
+      if (stuck) { f.remove(); RUN.frame = null; }        // throw the busy frame away so its process can go
+      else f.srcdoc = '<!doctype html><title></title>';   // stop the page's code: it isn't needed any more
+      resolve(stuck ? false : v);
+    };
+    RUN.gen = gen; RUN.finish = finish;
+    f.srcdoc = html;
+  });
+}
+addEventListener('message', e => {
+  const f = RUN.frame;
+  if (!f || !RUN.finish || e.source !== f.contentWindow) return;
+  const d = e.data;
+  if (!d || typeof d !== 'object' || d.pw !== 'snap' || d.gen !== RUN.gen || typeof d.html !== 'string') return;
+  RUN.finish(d.html && d.html.length < 400e6 ? d.html : null);
+});
+
+// Events the editor handles inside the view. The page's own handlers never run there.
+const VIEW_EVENTS = ['pointermove', 'pointerdown', 'pointerup', 'pointercancel', 'mousedown', 'click', 'auxclick', 'dblclick', 'submit', 'dragstart', 'dragover', 'drop', 'paste', 'beforeinput', 'input', 'keydown'];
 let loadTimer;
 function renderView(after) {
   V.ready = false;
@@ -4200,13 +4497,37 @@ function renderView(after) {
   const f = $('#view');
   clearTimeout(loadTimer);
   loadTimer = setTimeout(() => { if (!V.ready) $('#canvasLoading').hidden = false; }, 300);
-  f.onload = () => {
+  f.style.opacity = '0';
+  fitFrameToWrap();
+  const show = html => {
+    if (gen !== V.gen) return;
+    f.onload = () => onViewLoad(f, gen, after);
+    f.srcdoc = html;
+  };
+  if (!hasScripts(S.doc)) { show(viewHTML(null)); return; }
+  const { root, head } = markedRoot();
+  addBase(S.doc, head);
+  const agent = S.doc.createElement('script'); agent.setAttribute('data-pw', ''); agent.textContent = sealedAgent(gen);
+  head.prepend(agent);
+  runSealed(gen, docText(root)).then(snap => {
+    if (gen !== V.gen) return;
+    let doc = null;
+    if (snap) { doc = parse(snap); if (!doc.body || !doc.body.hasAttribute('data-wy')) doc = null; }
+    if (snap === false) toast('This page’s own code didn’t finish, so it’s shown without it. Your edits still work');
+    show(viewHTML(doc));
+  });
+}
+function onViewLoad(f, gen, after) {
     if (gen !== V.gen) return;
     V.win = f.contentWindow; V.doc = f.contentDocument;
+    if (!V.doc) return;
+    VIEW_EVENTS.forEach(t => V.win.addEventListener(t, e => {
+      if (gen !== V.gen || !V.ready) { if (e.cancelable && /click|submit|drop|dragstart|dragover/.test(e.type)) e.preventDefault(); return; }
+      VH[t]?.(e);
+    }, { capture: true, passive: false }));
     V.doc.addEventListener('selectionchange', onSelectionChange);
     V.win.addEventListener('scroll', placeHandlesSoon, true);
     V.win.addEventListener('resize', placeHandlesSoon);
-    // Let the page's own scripts measure the full layout first, then show only the current page.
     const reveal = () => {
       if (gen !== V.gen) return;
       V.doc.documentElement.setAttribute('data-wy-ready', '');
@@ -4219,11 +4540,7 @@ function renderView(after) {
       setTimeout(() => { if (gen === V.gen) { setCurrentInView(); fit(); snapshot(); } }, 600);
       after?.();
     };
-    V.win.requestAnimationFrame(() => V.win.requestAnimationFrame(() => setTimeout(reveal, 120)));
-  };
-  f.style.opacity = '0';
-  fitFrameToWrap();
-  f.srcdoc = buildViewHTML(gen);
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(reveal, 60)));
 }
 function fitFrameToWrap() {
   const wrap = $('#frameWrap'), f = $('#view');
@@ -4312,7 +4629,8 @@ function renderPageList() {
   const ol = $('#pageList');
   ol.innerHTML = '';
   io?.disconnect();
-  io = new IntersectionObserver(entries => entries.forEach(en => { if (en.isIntersecting) renderThumb(en.target); }), { root: ol, rootMargin: '200px' });
+  // Only thumbnails near the visible part of the list are kept loaded
+  io = new IntersectionObserver(entries => entries.forEach(en => { if (en.isIntersecting) renderThumb(en.target); else unloadThumb(en.target); }), { root: ol, rootMargin: '300px' });
   const titles = pageTitles();
   S.pages.forEach((id, i) => {
     const li = document.createElement('li');
@@ -4338,17 +4656,21 @@ function updateTitles() {
 }
 const thumbW = () => matchMedia('(max-width: 839px)').matches ? 104 : 170;
 
-/* ---- Thumbnails: static copies of the live view, one per page ---- */
-const TH = { base: null, w: 0, h: 0 };
+/* ---- Thumbnails: static copies of the view, one per page ----
+   Each thumbnail is a script-free iframe that holds only its own page (other pages are left as
+   empty boxes so the layout and CSS selectors still match), and thumbnails scrolled far out of
+   sight are unloaded. */
+const TH = { root: null, doc: null, w: 0, h: 0 };
 function snapshot() {
   if (!V.ready) return;
-  const root = V.doc.documentElement.cloneNode(true);
+  TH.doc ||= document.implementation.createHTMLDocument('');   // inert: nothing loads or runs in it
+  const root = TH.doc.importNode(V.doc.documentElement, true);
   root.querySelectorAll('script, style[data-pw], [data-pw-ui]').forEach(s => s.remove());
   root.querySelectorAll('[data-wy-current]').forEach(e => e.removeAttribute('data-wy-current'));
   root.querySelectorAll('[data-wy-chrome]').forEach(e => e.remove());
   root.querySelectorAll('[inert]').forEach(e => e.removeAttribute('inert'));
   EDITOR_ATTRS.forEach(a => root.querySelectorAll(`[${a}]`).forEach(e => e.removeAttribute(a)));
-  TH.base = root.outerHTML;
+  TH.root = root;
   const f = $('#view');
   TH.w = parseFloat(f.style.width) || f.clientWidth;
   TH.h = parseFloat(f.style.height) || f.clientHeight;
@@ -4360,8 +4682,29 @@ function snapshot() {
   });
 }
 const snapshotSoon = debounce(snapshot, 700);
+function thumbHTML(id) {
+  const pages = new Set(S.pages);
+  const copy = n => {
+    if (n.nodeType !== 1) return n.cloneNode(false);
+    const c = n.cloneNode(false);
+    const nid = n.getAttribute('data-wy');
+    if (nid && nid !== id && pages.has(nid)) return c;
+    if (n.localName === 'template') return n.cloneNode(true);
+    for (const k of n.childNodes) c.append(copy(k));
+    return c;
+  };
+  return (S.doc.doctype ? S.doctype + '\n' : '') + copy(TH.root).outerHTML;
+}
+function unloadThumb(li) {
+  const box = li.querySelector('.thumb');
+  const frames = box?.querySelectorAll('iframe');
+  if (!frames?.length) return;
+  frames.forEach(f => f.remove());
+  if (!box.querySelector('.ph')) { const ph = document.createElement('div'); ph.className = 'ph mn-skeleton'; box.prepend(ph); }
+  delete li.dataset.v;
+}
 function renderThumb(li) {
-  if (!TH.base) return;
+  if (!TH.root) return;
   const id = li.dataset.id, ver = String(S.pageVer[id] || 0);
   if (li.dataset.v === ver) return;
   li.dataset.v = ver;
@@ -4376,7 +4719,8 @@ function renderThumb(li) {
 [data-wy="${id}"] .reveal,[data-wy="${id}"] .build,[data-wy="${id}"] .fragment{opacity:1!important;visibility:visible!important;transform:none!important}
 [data-wy="${id}"] .draw{stroke-dashoffset:0!important}
 *,*::before,*::after{transition:none!important;animation:none!important}
-html,body{overflow:hidden!important}`;
+html,body{overflow:hidden!important}
+noscript,canvas>*{display:none!important}canvas{color:transparent!important;font-size:0!important}`;
   fresh.onload = () => {
     const d = fresh.contentDocument; if (!d) return;
     const el = d.querySelector(`[data-wy="${cssEsc(id)}"]`);
@@ -4396,7 +4740,7 @@ html,body{overflow:hidden!important}`;
     box.querySelectorAll('iframe').forEach(x => { if (x !== fresh) x.remove(); });
   };
   box.append(fresh);
-  fresh.srcdoc = (S.doc.doctype ? S.doctype + '\n' : '') + TH.base.replace(/<\/head>/i, `<style>${css}</style></head>`);
+  fresh.srcdoc = thumbHTML(id).replace(/<\/head>/i, `<style>${css}</style></head>`);
 }
 
 /* ---- Page operations ---- */
@@ -4500,12 +4844,6 @@ function movePage(from, to) {
 }
 
 /* ============================== VIEW EVENTS ============================== */
-window.__pagewise = (e, gen) => {
-  if (gen !== V.gen || !V.ready) { try { e.stopImmediatePropagation(); } catch {} return; }
-  e.stopImmediatePropagation();
-  const h = VH[e.type];
-  if (h) h(e);
-};
 const elOf = n => n && (n.nodeType === 1 ? n : n.parentElement);
 function isTextBlock(el) {
   if (!el || el.nodeType !== 1 || !idOf(el)) return false;
@@ -4635,7 +4973,7 @@ function startResize(dir, e, handle) {
   const boxW = el.offsetWidth || parseFloat(cs.width) || r.width;
   const boxH = el.offsetHeight || parseFloat(cs.height) || r.height;
   RZ = {
-    el, dir, x: e.clientX, y: e.clientY,
+    el, dir, x: e.clientX, y: e.clientY, props: new Set(),
     ratio: r.width / boxW || 1,
     w: parseFloat(cs.width) || boxW, h: parseFloat(cs.height) || boxH,
     aspect: boxH / boxW, maxW: cs.maxWidth,
@@ -4652,13 +4990,14 @@ function moveResize(e) {
   const st = R.el.style;
   let w = R.w, h = null;
   if (R.dir !== 's') w = Math.max(24, Math.round(R.w + dx));
+  const P = R.props;
   if (R.img) {
-    st.width = w + 'px'; st.height = 'auto';
-    if (R.maxW !== 'none' && w > R.w) st.maxWidth = 'none';
+    st.width = w + 'px'; st.height = 'auto'; P.add('width'); P.add('height');
+    if (R.maxW !== 'none' && w > R.w) { st.maxWidth = 'none'; P.add('max-width'); }
     h = Math.round(w * R.aspect);
   } else {
-    if (R.dir !== 's') { st.width = w + 'px'; if (R.maxW !== 'none') st.maxWidth = 'none'; if (R.flexRow) st.flex = '0 0 auto'; }
-    if (R.dir !== 'e') { h = Math.max(16, Math.round(R.h + dy)); st.minHeight = h + 'px'; }
+    if (R.dir !== 's') { st.width = w + 'px'; P.add('width'); if (R.maxW !== 'none') { st.maxWidth = 'none'; P.add('max-width'); } if (R.flexRow) { st.flex = '0 0 auto'; P.add('flex'); } }
+    if (R.dir !== 'e') { h = Math.max(16, Math.round(R.h + dy)); st.minHeight = h + 'px'; P.add('min-height'); }
   }
   const lab = handleLayer().querySelector('[data-pw-size]');
   lab.textContent = h ? `${w} × ${h}` : `${w} wide`;
@@ -4669,9 +5008,10 @@ function endResize() {
   handleLayer().querySelector('[data-pw-size]').style.display = 'none';
   R.el.removeAttribute('width'); R.el.removeAttribute('height');
   const id = idOf(R.el), src = sq(id);
-  if (src) {
+  if (src && R.props.size) {
     if (R.img) { src.removeAttribute('width'); src.removeAttribute('height'); }
-    SIZE_PROPS.forEach(p => { const v = R.el.style.getPropertyValue(p); if (v) src.style.setProperty(p, v); });
+    // Only the sizes set by this drag are copied; other values in the view may come from the page's code
+    R.props.forEach(p => { const v = R.el.style.getPropertyValue(p); if (v) src.style.setProperty(p, v); });
   }
   commit();
   placeHandles();
@@ -4718,6 +5058,7 @@ const VH = {
     const t = elOf(e.target);
     if (t?.closest('a, button, input, select, textarea, label, summary, area, [onclick]')) e.preventDefault();
   },
+  auxclick(e) { e.preventDefault(); },
   dblclick(e) {
     const t = elOf(e.target);
     if (SEL?.kind === 'pic' && SEL.el === t) picOp('replace');
@@ -4774,6 +5115,62 @@ function onKey(e, inView) {
 
 /* ============================== TEXT EDITING ============================== */
 function attrsOf(el) { const o = {}; for (const a of el.attributes) o[a.name] = a.value; return o; }
+
+/* ---- Cleaning what comes back from the view ----
+   The view shows the page as its own (sealed) scripts left it, so a block being edited can contain
+   things the source doesn't have. Before the edited text is written into the document:
+   - an element keeps its identity only if the source has that id inside this block, once, with
+     the same tag; its attributes come from the source unless the editor changed them, and a
+     changed value must be safe (no event handlers, no script URLs);
+   - anything else counts as new and keeps only plain text formatting with safe attributes. */
+const URL_ATTRS = new Set('href src xlink:href action formaction poster background cite data codebase ping lowsrc dynsrc longdesc usemap manifest'.split(' '));
+const NEW_OK = new Set('a abbr b bdi bdo br cite code data dfn em i kbd mark q s samp small span strong sub sup time u var wbr font del ins img div p'.split(' '));
+const NEW_DROP = new Set('script style iframe frame frameset object embed applet link meta base template noscript form input button select textarea option svg math video audio source track canvas portal dialog slot'.split(' '));
+const NEW_ATTRS = new Set('style class href title lang dir color face size alt src width height datetime'.split(' '));
+function safeUrl(v, img = false) {
+  const u = String(v).replace(/[\u0000- \u007f-\u009f]/g, '');   // browsers ignore these inside a scheme
+  if (img && /^data:image\/(png|jpe?g|gif|webp|avif|bmp|svg\+xml)[;,]/i.test(u)) return true;
+  const m = /^([a-z][a-z0-9+.-]*):/i.exec(u);
+  return !m || /^(https?|mailto|tel)$/i.test(m[1]);
+}
+function attrOk(el, name, value) {
+  const n = name.toLowerCase();
+  if (n.startsWith('on') || n === 'srcdoc' || n === 'is' || n === 'contenteditable') return false;
+  if (URL_ATTRS.has(n)) return safeUrl(value, el.localName === 'img' || n === 'poster');
+  if (n === 'srcset') return value.split(',').every(c => safeUrl(c.trim().split(/\s+/)[0] || '', true));
+  if (n === 'style') return !/expression\s*\(|javascript\s*:|-moz-binding|behavior\s*:/i.test(value);
+  return true;
+}
+function cleanFlush(src, clone, start) {
+  const own = new Map();
+  src.querySelectorAll('[data-wy]').forEach(d => own.set(idOf(d), d));
+  const seen = new Set();
+  const walk = parent => {
+    for (const d of [...parent.childNodes]) {
+      if (d.nodeType === 3 || d.nodeType === 8) continue;
+      if (d.nodeType !== 1) { d.remove(); continue; }
+      const id = idOf(d), s = id ? own.get(id) : null, tag = d.localName;
+      if (s && !seen.has(id) && s.localName === tag && s.namespaceURI === d.namespaceURI) {
+        seen.add(id);
+        const now = attrsOf(d), st = start?.get(id) || now, orig = attrsOf(s);
+        for (const n of new Set([...Object.keys(now), ...Object.keys(st), ...Object.keys(orig)])) {
+          if (n === 'data-wy') continue;
+          let val = now[n] !== st[n] ? now[n] : orig[n];
+          if (val != null && val !== orig[n] && !attrOk(d, n, val)) val = orig[n];
+          if (val == null) d.removeAttribute(n); else if (d.getAttribute(n) !== val) d.setAttribute(n, val);
+        }
+        walk(d);
+        continue;
+      }
+      d.removeAttribute('data-wy');
+      if (NEW_DROP.has(tag) || d.namespaceURI !== HTML_NS) { d.remove(); continue; }
+      walk(d);
+      if (!NEW_OK.has(tag)) { d.replaceWith(...d.childNodes); continue; }
+      for (const a of [...d.attributes]) if (!NEW_ATTRS.has(a.name) || !attrOk(d, a.name, a.value)) d.removeAttribute(a.name);
+    }
+  };
+  walk(clone);
+}
 function snapAttrs(el) {
   const m = new Map();
   el.querySelectorAll('[data-wy]').forEach(d => m.set(idOf(d), attrsOf(d)));
@@ -4821,21 +5218,11 @@ function flush() {
   const el = E.el, id = idOf(el), src = sq(id);
   if (!src) { E.dirty = false; return false; }
   const clone = el.cloneNode(true);
-  clone.querySelectorAll('[data-wy]').forEach(d => {
-    const did = idOf(d), s = sq(did), start = E.start?.get(did);
-    if (!s || !start) return;
-    const now = attrsOf(d), orig = attrsOf(s);
-    const names = new Set([...Object.keys(now), ...Object.keys(start), ...Object.keys(orig)]);
-    names.forEach(n => {
-      if (n === 'data-wy') return;
-      const val = now[n] !== start[n] ? now[n] : orig[n];
-      if (val == null) d.removeAttribute(n); else d.setAttribute(n, val);
-    });
-  });
   EDITOR_ATTRS.forEach(a => clone.querySelectorAll(`[${a}]`).forEach(x => x.removeAttribute(a)));
+  cleanFlush(src, clone, E.start);
   src.innerHTML = clone.innerHTML;
   const a = [...src.querySelectorAll('*')], b = [...el.querySelectorAll('*')];
-  if (a.length === b.length) a.forEach((x, i) => { if (!idOf(x)) { const n = newId(); x.setAttribute('data-wy', n); b[i].setAttribute('data-wy', n); } });
+  if (a.length === b.length && a.every((x, i) => x.localName === b[i].localName)) a.forEach((x, i) => { if (!idOf(x)) { const n = newId(); x.setAttribute('data-wy', n); b[i].setAttribute('data-wy', n); } });
   else a.forEach(x => { if (!idOf(x)) x.setAttribute('data-wy', newId()); });
   E.start = snapAttrs(el);
   E.dirty = false;
@@ -5056,7 +5443,8 @@ function distribute(axis) {
   const end = H ? R(last).right : R(last).bottom;
   const gap = (end - start - sizes.reduce((a, b) => a + b, 0)) / (sorted.length - 1);
   const positioned = sorted.every(el => /absolute|fixed/.test(W.getComputedStyle(el).position));
-  const touched = new Set();
+  const touched = new Map();   // element -> the properties this function set
+  const touch = (el, prop) => { if (!touched.has(el)) touched.set(el, new Set()); touched.get(el).add(prop); };
   if (positioned) {
     let pos = start;
     sorted.forEach((el, i) => {
@@ -5067,7 +5455,7 @@ function distribute(axis) {
         const base = parseFloat(W.getComputedStyle(el)[prop]);
         const v = isNaN(base) ? (H ? el.offsetLeft : el.offsetTop) : base;
         el.style.setProperty(prop, Math.round((v + delta) * 10) / 10 + 'px');
-        touched.add(el);
+        touch(el, prop);
       }
       pos += sizes[i] + gap;
     });
@@ -5088,13 +5476,13 @@ function distribute(axis) {
         el.style.marginLeft = '0px';
         const b = R(el).left - R(prev).right;
         el.style.marginLeft = ((gap - b) / ratio).toFixed(1) + 'px';
+        touch(el, 'margin-left');
       } else {
         prev.style.marginBottom = '0px'; el.style.marginTop = '0px';
         const b = R(el).top - R(prev).bottom;
         el.style.marginTop = Math.max(0, (gap - b) / ratio).toFixed(1) + 'px';
-        touched.add(prev);
+        touch(prev, 'margin-bottom'); touch(el, 'margin-top');
       }
-      touched.add(el);
     }
     if (!check()) {
       saved.forEach(([el, st]) => st == null ? el.removeAttribute('style') : el.setAttribute('style', st));
@@ -5103,9 +5491,9 @@ function distribute(axis) {
     }
   }
   if (!touched.size) { toast('Already evenly spaced'); return; }
-  touched.forEach(el => {
+  touched.forEach((props, el) => {
     const s = sq(idOf(el)); if (!s) return;
-    ['left', 'top', 'margin-left', 'margin-top', 'margin-bottom'].forEach(p => { const v = el.style.getPropertyValue(p); if (v) s.style.setProperty(p, v); });
+    props.forEach(p => { const v = el.style.getPropertyValue(p); if (v) s.style.setProperty(p, v); });
   });
   commit(); placeHandlesSoon();
   toast(H ? 'Spaced evenly across' : 'Spaced evenly down', { action: 'Undo', onAction: undo });
@@ -5345,7 +5733,7 @@ function applyLink(result) {
   if (result !== 'ok') return;
   const url = normalizeUrl($('#linkUrl').value);
   const text = $('#linkText').value.trim();
-  if (!url) return;
+  if (!url || !safeUrl(url)) return;
   if (L.a) {
     L.a.setAttribute('href', url);
     if (text && text !== L.a.textContent) L.a.textContent = text;
@@ -5379,7 +5767,7 @@ function applyCode() {
   const src = sq(curId()); if (!src) return;
   const code = $('#codeText').value;
   if (src === S.doc.body) {
-    src.innerHTML = code; assignIds(src);
+    src.innerHTML = code; assignIds(src, { keepRoot: true });
   } else {
     const t = S.doc.createElement('template'); t.innerHTML = code.trim();
     const els = [...t.content.children];
@@ -5481,6 +5869,7 @@ function leaveEditor() {
     const show = () => { $('#editor').hidden = true; $('#home').hidden = false; document.title = 'Pagewise'; renderRecents(); };
     window.mn ? mn.go(show, { type: 'back' }) : show();
     V.gen++; $('#view').srcdoc = ''; V.ready = false;
+    RUN.finish?.(null); TH.root = null;
   };
   if (E.el) finishEditing();
   if (S.dirty) {
@@ -5513,6 +5902,7 @@ function wire() {
   });
   // The home drop zone opens the native picker when the FS Access API is available (so Save can write back)
   $('#homeDrop').addEventListener('click', e => { if (window.showOpenFilePicker) { e.preventDefault(); openPicker(); } });
+  $('#clearDrafts').addEventListener('click', clearDrafts);
 
   // Editor top bar
   $('#homeBtn').addEventListener('click', leaveEditor);
@@ -5583,7 +5973,11 @@ function wire() {
   $('#linkSheet').addEventListener('cancel', () => { $('#linkSheet').returnValue = 'cancel'; });
   $('#linkRemove').addEventListener('click', () => $('#linkSheet').close('remove'));
   $('#linkForm').addEventListener('submit', e => {
-    if (e.submitter?.value === 'ok' && !$('#linkUrl').value.trim()) { e.preventDefault(); $('#linkErr').textContent = 'Add a web address, like example.com'; $('#linkUrl').focus(); }
+    if (e.submitter?.value !== 'ok') return;
+    const v = $('#linkUrl').value.trim();
+    const err = !v ? 'Add a web address, like example.com'
+      : !safeUrl(normalizeUrl(v)) ? 'Links can go to a web address, an email address or a phone number' : '';
+    if (err) { e.preventDefault(); $('#linkErr').textContent = err; $('#linkUrl').focus(); }
   });
   $('#altSheet').addEventListener('close', () => {
     if ($('#altSheet').returnValue === 'ok' && SEL?.kind === 'pic') { const v = $('#altText').value.trim(); mirror(idOf(SEL.el), x => x.setAttribute('alt', v)); commit(); }
@@ -5641,8 +6035,14 @@ function wire() {
   });
 
   new ResizeObserver(() => { if (!$('#editor').hidden) fitSoon(); }).observe($('#frameWrap'));
-  addEventListener('beforeunload', () => { if (S.doc && !$('#editor').hidden) { if (E.el) flush(); saveDraft(); } });
+  // Unsaved work is kept as a draft; if the latest changes may not have reached it yet, ask first
+  addEventListener('beforeunload', e => {
+    if (!S.doc || $('#editor').hidden) return;
+    if (E.el && flush()) commit();
+    if (S.dirty && S.draftSeq !== S.editSeq) { saveDraft(); e.preventDefault(); e.returnValue = ''; }
+  });
   addEventListener('pagehide', () => { if (S.doc && !$('#editor').hidden) saveDraft(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && S.doc && !$('#editor').hidden) { if (E.el && flush()) commit(); saveDraft(); } });
 }
 
 /* ============================== APPEARANCE ============================== */
@@ -5695,15 +6095,26 @@ function wireLook() {
 }
 
 function init() {
+  // Pagewise only runs in its own tab, so another site can't embed it and steer the person's clicks
+  if (window.top !== window.self) {
+    document.body.textContent = '';
+    const p = document.createElement('p'), a = document.createElement('a');
+    p.style.cssText = 'font:16px/1.5 system-ui,sans-serif;padding:24px';
+    a.href = location.href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'Open Pagewise in its own tab';
+    p.append(a); document.body.append(p);
+    return;
+  }
   wire();
-  renderRecents();
+  migrateOldDrafts().finally(renderRecents);
   const p = new URLSearchParams(location.search).get('open');
-  if (p) openUrl(p);
-  // Small API for automation and testing
-  window.Pagewise = {
-    openText: (text, name) => loadText(text, { name: name || 'page.html' }),
-    openUrl, html: () => faithfulSerialize(), plainHtml: () => serialize(false), state: S, view: V, goPage, undo, redo, save,
-  };
+  if (p) openFromLink(p);
+  // Small API for automation and testing. It reads and edits only the open document: no file
+  // handle, no saving and no internal state.
+  window.Pagewise = Object.freeze({
+    openText: (text, name) => loadText(String(text), { name: String(name || 'page.html') }),
+    html: () => faithfulSerialize(), plainHtml: () => serialize(false), goPage, undo, redo,
+    info: () => ({ name: S.name, pages: S.pages.length, page: S.cur, dirty: S.dirty, ready: V.ready }),
+  });
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
@@ -5739,7 +6150,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
     <p class="home-error mn-body-m" id="homeError" role="alert" hidden></p>
 
     <section class="mn-section" id="recentSection" hidden>
-      <h2 class="mn-section-title">Continue where you left off</h2>
+      <h2 class="mn-section-title recent-head">Unsaved work in this browser<span class="mn-spacer"></span><button class="mn-btn text sm" id="clearDrafts" type="button">Remove all</button></h2>
       <div class="mn-list" id="recentList"></div>
     </section>
   </div>
@@ -5924,7 +6335,8 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
     <main class="canvas" id="canvas">
       <div class="hint-chip mn-label-l" data-once="click-text" id="hintChip"><i data-icon="edit"></i>Click any text to change it</div>
       <div class="frame-wrap" id="frameWrap">
-        <iframe id="view" title="Page you are editing" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
+        <!-- Scripts never run in the editing view: the page's own code runs sealed off (see app.js) -->
+        <iframe id="view" title="Page you are editing" sandbox="allow-same-origin" referrerpolicy="no-referrer"></iframe>
       </div>
       <div class="canvas-loading" id="canvasLoading" hidden><span class="mn-loader" style="--size: 48px"></span></div>
       <nav class="page-nav" aria-label="Page navigation">
@@ -5985,6 +6397,18 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
     <div class="actions">
       <button class="mn-btn text" value="cancel">Cancel</button>
       <button class="mn-btn" value="ok">Apply code</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mn-sheet" id="openUrlSheet">
+  <form method="dialog" class="mn-stack" style="--gap: 16px">
+    <h2 class="mn-title-l">Open a file from <span id="openUrlHost"></span>?</h2>
+    <p class="mn-body-m mn-muted">A link asked Pagewise to open this file. Only open it if you trust where the link came from.</p>
+    <p class="mn-body-s open-url-addr" id="openUrlAddr"></p>
+    <div class="actions">
+      <button class="mn-btn text" value="cancel">Cancel</button>
+      <button class="mn-btn" value="open">Open file</button>
     </div>
   </form>
 </dialog>
