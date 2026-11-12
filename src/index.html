@@ -1,14 +1,21 @@
 <!doctype html>
-<!-- Pagewise: a page-by-page editor for HTML documents and slide decks.
+<!-- wysiwyghtml: a page-by-page editor for HTML documents and slide decks.
      Material Next design language: independent, built on M3; not an official Google design. -->
 <html lang="en" data-expressiveness="expressive">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Pagewise</title>
+<title>wysiwyghtml</title>
+<meta name="description" content="Edit any HTML file like a document, one page at a time">
+<meta name="theme-color" content="#15233F">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="icons/favicon-16.png" sizes="16x16" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,300..900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,300..900&family=JetBrains+Mono:wght@500;800&display=swap">
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="palettes.css">
 <link rel="stylesheet" href="mn.css">
@@ -30,9 +37,9 @@
 <section id="home" class="home">
   <div class="home-inner mn-stack" style="--gap: 32px">
     <header class="home-head">
-      <span class="brand-mark" aria-hidden="true"><i data-icon="file"></i></span>
+      <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#15233F"/><path d="M23 20L11 32l12 12M41 20l12 12-12 12" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M32 19v26M28 18.5h8M28 45.5h8" fill="none" stroke="#F4B740" stroke-width="4" stroke-linecap="round"/></svg>
       <div>
-        <h1 class="mn-headline-m">Pagewise</h1>
+        <h1 class="brand-word">wysiwyg<span>html</span></h1>
         <p class="mn-body-l mn-muted">Edit any web page like a document, one page at a time</p>
       </div>
       <span class="mn-spacer"></span>
@@ -308,7 +315,7 @@
 <dialog class="mn-sheet" id="openUrlSheet">
   <form method="dialog" class="mn-stack" style="--gap: 16px">
     <h2 class="mn-title-l">Open a file from <span id="openUrlHost"></span>?</h2>
-    <p class="mn-body-m mn-muted">A link asked Pagewise to open this file. Only open it if you trust where the link came from.</p>
+    <p class="mn-body-m mn-muted">A link asked wysiwyghtml to open this file. Only open it if you trust where the link came from.</p>
     <p class="mn-body-s open-url-addr" id="openUrlAddr"></p>
     <div class="actions">
       <button class="mn-btn text" value="cancel">Cancel</button>
