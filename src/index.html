@@ -54,7 +54,7 @@
     <p class="home-error mn-body-m" id="homeError" role="alert" hidden></p>
 
     <section class="mn-section" id="recentSection" hidden>
-      <h2 class="mn-section-title">Continue where you left off</h2>
+      <h2 class="mn-section-title recent-head">Unsaved work in this browser<span class="mn-spacer"></span><button class="mn-btn text sm" id="clearDrafts" type="button">Remove all</button></h2>
       <div class="mn-list" id="recentList"></div>
     </section>
   </div>
@@ -239,7 +239,8 @@
     <main class="canvas" id="canvas">
       <div class="hint-chip mn-label-l" data-once="click-text" id="hintChip"><i data-icon="edit"></i>Click any text to change it</div>
       <div class="frame-wrap" id="frameWrap">
-        <iframe id="view" title="Page you are editing" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
+        <!-- Scripts never run in the editing view: the page's own code runs sealed off (see app.js) -->
+        <iframe id="view" title="Page you are editing" sandbox="allow-same-origin" referrerpolicy="no-referrer"></iframe>
       </div>
       <div class="canvas-loading" id="canvasLoading" hidden><span class="mn-loader" style="--size: 48px"></span></div>
       <nav class="page-nav" aria-label="Page navigation">
@@ -300,6 +301,18 @@
     <div class="actions">
       <button class="mn-btn text" value="cancel">Cancel</button>
       <button class="mn-btn" value="ok">Apply code</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="mn-sheet" id="openUrlSheet">
+  <form method="dialog" class="mn-stack" style="--gap: 16px">
+    <h2 class="mn-title-l">Open a file from <span id="openUrlHost"></span>?</h2>
+    <p class="mn-body-m mn-muted">A link asked Pagewise to open this file. Only open it if you trust where the link came from.</p>
+    <p class="mn-body-s open-url-addr" id="openUrlAddr"></p>
+    <div class="actions">
+      <button class="mn-btn text" value="cancel">Cancel</button>
+      <button class="mn-btn" value="open">Open file</button>
     </div>
   </form>
 </dialog>
