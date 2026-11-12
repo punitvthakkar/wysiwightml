@@ -1,4 +1,4 @@
-/* Pagewise app layout. Material Next design language: independent, built on M3; not an official Google design.
+/* wysiwyghtml app layout. Material Next design language: independent, built on M3; not an official Google design.
    Components come from mn.css; this file is layout and the app's own character, written with tokens. */
 
 html, body { height: 100%; }
@@ -29,14 +29,15 @@ body { margin: 0; background: var(--md-sys-color-surface); color: var(--md-sys-c
 .home-head { display: flex; align-items: center; gap: 16px; }
 .home-head h1 { margin: 0; }
 .home-head p { margin: 4px 0 0; }
-.brand-mark {
-  width: 64px; height: 64px; flex: none;
-  display: grid; place-items: center;
-  border-radius: calc(20px * var(--mn-corner-scale, 1));
-  background: conic-gradient(from 210deg, var(--md-sys-color-primary), var(--acc-violet), var(--acc-blue), var(--acc-teal), var(--acc-amber), var(--md-sys-color-primary));
-  color: var(--md-sys-color-on-primary);
-}
-.brand-mark svg { width: 32px; height: 32px; fill: currentColor; }
+/* Brand: ink navy mark; the wordmark is "wysiwyg" + "html" in amber */
+:root { --brand-ink: #15233F; --brand-amber: #9A6400; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --brand-amber: #F4B740; } }
+:root[data-theme="dark"] { --brand-amber: #F4B740; }
+.brand-mark { width: 64px; height: 64px; flex: none; display: block; }
+:root[data-theme="dark"] .brand-mark rect { stroke: rgb(255 255 255 / .14); stroke-width: 1.5; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand-mark rect { stroke: rgb(255 255 255 / .14); stroke-width: 1.5; } }
+.brand-word { margin: 0; font: 500 30px/1.15 'JetBrains Mono', ui-monospace, monospace; letter-spacing: -.02em; color: var(--md-sys-color-on-surface); }
+.brand-word span { font-weight: 800; color: var(--brand-amber); }
 .home-drop { min-height: 180px; background: color-mix(in srgb, var(--md-sys-color-surface-container-lowest) 80%, transparent); }
 .home-actions { gap: 12px; }
 .home-error {

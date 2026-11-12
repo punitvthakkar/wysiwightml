@@ -1,4 +1,4 @@
-# Pagewise
+# wysiwyghtml
 
 Edit any HTML file like a Word document or a PowerPoint deck: open it, go page by page, click
 text to change it, and save. You don't need to know HTML.
@@ -37,7 +37,7 @@ the file you opened. Other browsers download a copy instead.
   keeps its own design, scripts and animations. The rebuilt file is checked before it is
   written; if that check ever fails, it falls back to a plain full rewrite.
 - **Present** opens the file as it really runs (for example as a slide show) in a new tab, sealed
-  off from Pagewise. **Print or save as PDF** is in the ⋮ menu.
+  off from wysiwyghtml. **Print or save as PDF** is in the ⋮ menu.
 - **Unsaved work** is kept in this browser while it isn't in a file yet, and listed on the start
   screen. Saving removes it, it expires after 30 days, and "Remove all" clears it.
 - **Appearance** (palette button on the start screen, or ⋮ › Appearance):
@@ -62,32 +62,32 @@ mirrored into the source by id. See the comment at the top of `src/app.js`.
 
 ### Security model
 
-An opened file is treated as untrusted. None of its code ever runs on Pagewise's own origin:
+An opened file is treated as untrusted. None of its code ever runs on wysiwyghtml's own origin:
 
 - **Running the page's code.** If the file has scripts, it first runs in a hidden iframe with an
   opaque origin (`sandbox="allow-scripts"`, no `allow-same-origin`). From there it can't reach
-  Pagewise, its drafts, browser storage for this site or the file on disk. Its only output is the
+  wysiwyghtml, its drafts, browser storage for this site or the file on disk. Its only output is the
   finished page, posted back as HTML (canvases become pictures), so drawings made by code still
   appear. Storage calls get an in-memory stand-in so such pages don't fail. If the code doesn't
   settle within 15 seconds, the page is shown without it.
 - **Editing.** The view you edit is an iframe with scripts disabled (`sandbox="allow-same-origin"`),
-  driven by Pagewise. Because the sealed run decides what that view contains, text copied back
+  driven by wysiwyghtml. Because the sealed run decides what that view contains, text copied back
   into the document is cleaned: elements keep their identity only if the source has them there,
   event handlers and script URLs are dropped, and only sizes and positions the editor itself set
   are copied.
-- **Present and Print** open a blank tab with no link back to Pagewise, holding the file in an
+- **Present and Print** open a blank tab with no link back to wysiwyghtml, holding the file in an
   opaque-origin sandbox.
 - **Links.** `?open=<url>` only accepts http(s) addresses, sends no cookies to other sites, and
   asks before opening a file from another site. Links you add can only go to web addresses,
   email addresses or phone numbers.
-- **Storage.** Only unsaved work is kept, in IndexedDB; file handles are never stored. Pagewise
-  refuses to run inside another site's frame, and `window.Pagewise` (for testing) can't save or
+- **Storage.** Only unsaved work is kept, in IndexedDB; file handles are never stored. wysiwyghtml
+  refuses to run inside another site's frame, and `window.wysiwyghtml` (for testing) can't save or
   reach the file.
 
 **Hosting on GitHub Pages.** Every project site of one account shares the origin
 `<user>.github.io`, so code on any of those sites can read this site's IndexedDB, which holds
-unsaved work. Pagewise itself never runs a file's code there. To keep drafts away from your other
-sites, publish Pagewise from a GitHub organization or account used only for it
+unsaved work. wysiwyghtml itself never runs a file's code there. To keep drafts away from your other
+sites, publish wysiwyghtml from a GitHub organization or account used only for it
 (`<name>.github.io`), or under a custom domain.
 
 ## Developing

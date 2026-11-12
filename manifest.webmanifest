@@ -1,0 +1,15 @@
+{
+  "name": "wysiwyghtml",
+  "short_name": "wysiwyghtml",
+  "description": "Edit any HTML file like a document, one page at a time",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FFF8F7",
+  "theme_color": "#15233F",
+  "icons": [
+    { "src": "icons/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -1,13 +1,13 @@
-/* Pagewise: edit any HTML file page by page, like a document.
+/* wysiwyghtml: edit any HTML file page by page, like a document.
    Material Next design language: independent, built on M3; not an official Google design.
 
    How it works
    - SOURCE: the opened file is parsed with DOMParser into an inert document (scripts never run there).
      Every element in <body> gets a data-wy id. Saving serializes this document, minus the ids,
      so the doctype, <head>, styles and scripts come back exactly as they were.
-   - SECURITY: an opened file is untrusted. None of its code ever runs on Pagewise's own origin.
+   - SECURITY: an opened file is untrusted. None of its code ever runs on wysiwyghtml's own origin.
      1. RUN: if the file has scripts, it runs first in a hidden iframe with an opaque origin
-        (sandbox="allow-scripts", no allow-same-origin). From there it can't reach Pagewise, its
+        (sandbox="allow-scripts", no allow-same-origin). From there it can't reach wysiwyghtml, its
         drafts or the file on disk. Its only output is the finished page, posted back as HTML
         (canvases become pictures), so drawings made by code still show.
      2. VIEW: the editor shows that HTML (or the source itself, when there are no scripts) in an
@@ -300,9 +300,9 @@ function faithfulSerialize() {
       const result = build(explicit);
       if (plainSerialize(parse(result)) === want) return result;
     }
-    console.warn('Pagewise: faithful save mismatch, using plain serializer');
+    console.warn('wysiwyghtml: faithful save mismatch, using plain serializer');
     return serialize(false);
-  } catch (e) { console.warn('Pagewise: faithful save failed', e); return serialize(false); }
+  } catch (e) { console.warn('wysiwyghtml: faithful save failed', e); return serialize(false); }
 }
 
 /* ---- Page detection ---- */
@@ -376,7 +376,7 @@ function prepare(text) {
     const byId = new Map();
     [doc.documentElement, ...doc.documentElement.querySelectorAll('*')].forEach(el => byId.set(spanKey(el), el.cloneNode(false)));
     orig = { text, spans, norm: normMap(doc.documentElement), byId };
-  } catch (e) { console.warn('Pagewise: could not map source', e); }
+  } catch (e) { console.warn('wysiwyghtml: could not map source', e); }
   return { doc, nextId: n, orig, doctype: m ? m[1] : '<!DOCTYPE html>', htmlGap: g ? g[1] : '' };
 }
 function loadText(text, { name = 'Untitled.html', handle = null, baseHref = null, draft = null } = {}) {
@@ -470,7 +470,7 @@ async function openUrl(url) {
   } catch { homeError('That link couldn’t be opened. Check the address and try again.'); }
 }
 // ?open=<url>: a link can ask to open a file. Files from other sites are only opened after the
-// person confirms, and every file runs sealed off from Pagewise either way.
+// person confirms, and every file runs sealed off from wysiwyghtml either way.
 function openFromLink(url) {
   const u = webUrl(url);
   if (!u) { homeError('That link asks to open something that isn’t a web address.'); return; }
@@ -560,7 +560,7 @@ const Drafts = (() => {
   const req = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
   const done = t => new Promise((res, rej) => { t.oncomplete = () => res(); t.onerror = t.onabort = () => rej(t.error); });
   const db = () => dbp || (dbp = new Promise((res, rej) => {
-    const r = indexedDB.open('pagewise', 1);
+    const r = indexedDB.open('pagewise', 1);   // the app's earlier name; kept so existing drafts stay reachable
     r.onupgradeneeded = () => { r.result.createObjectStore('meta', { keyPath: 'id' }); r.result.createObjectStore('body'); };
     r.onsuccess = () => res(r.result);
     r.onerror = () => { dbp = null; rej(r.error); };
@@ -611,7 +611,7 @@ async function saveDraft() {
     S.draftHasOrig = true;
     if (S.draftId === meta.id) S.draftSeq = Math.max(S.draftSeq, seq);
     Drafts.trim().catch(() => {});
-  } catch (e) { console.warn('Pagewise: draft not kept', e); }
+  } catch (e) { console.warn('wysiwyghtml: draft not kept', e); }
 }
 const saveDraftSoon = debounce(saveDraft, 1200);
 function dropDraft() {
@@ -746,8 +746,8 @@ function presentHtml({ print = false } = {}) {
   return (doc.doctype ? (S.doctype || '<!DOCTYPE html>') + '\n' : '') + doc.documentElement.outerHTML;
 }
 // The file runs in a new tab, inside an iframe with an opaque origin: its scripts work (slide
-// shows, animations), but it can't reach Pagewise, its drafts or the file on disk. The tab
-// itself is a blank page that Pagewise fills; it is cut off from this tab (no opener).
+// shows, animations), but it can't reach wysiwyghtml, its drafts or the file on disk. The tab
+// itself is a blank page that wysiwyghtml fills; it is cut off from this tab (no opener).
 const PRESENT_SANDBOX = 'allow-scripts allow-modals allow-popups allow-popups-to-escape-sandbox allow-forms allow-pointer-lock allow-top-navigation-by-user-activation';
 function openSealed(html) {
   const w = window.open('', '_blank');
@@ -836,7 +836,7 @@ function hasScripts(doc) {
 
 /* ---- Running the file's own scripts, sealed off ----
    The page runs in a hidden iframe with sandbox="allow-scripts" and no allow-same-origin, so it has
-   an opaque origin: it can't touch Pagewise, browser storage for this site or the file on disk.
+   an opaque origin: it can't touch wysiwyghtml, browser storage for this site or the file on disk.
    A small agent, injected first, waits until the page has loaded and gone quiet, then posts the
    resulting HTML back. Pictures drawn on canvases are kept as images. The answer is treated as
    untrusted: it is only ever shown in the script-free view, and cleaned before anything from it
@@ -2257,7 +2257,7 @@ function enterEditor() {
   $('#homeError').hidden = true;
   const show = () => {
     $('#home').hidden = true; $('#editor').hidden = false;
-    $('#docName').textContent = S.name; document.title = `${S.name} · Pagewise`;
+    $('#docName').textContent = S.name; document.title = `${S.name} · wysiwyghtml`;
     setDirty(S.dirty);
     showTab('text');
     deselect();
@@ -2272,7 +2272,7 @@ function leaveEditor() {
   const go = () => {
     if (E.el) finishEditing();
     saveDraft();
-    const show = () => { $('#editor').hidden = true; $('#home').hidden = false; document.title = 'Pagewise'; renderRecents(); };
+    const show = () => { $('#editor').hidden = true; $('#home').hidden = false; document.title = 'wysiwyghtml'; renderRecents(); };
     window.mn ? mn.go(show, { type: 'back' }) : show();
     V.gen++; $('#view').srcdoc = ''; V.ready = false;
     RUN.finish?.(null); TH.root = null;
@@ -2501,12 +2501,12 @@ function wireLook() {
 }
 
 function init() {
-  // Pagewise only runs in its own tab, so another site can't embed it and steer the person's clicks
+  // wysiwyghtml only runs in its own tab, so another site can't embed it and steer the person's clicks
   if (window.top !== window.self) {
     document.body.textContent = '';
     const p = document.createElement('p'), a = document.createElement('a');
     p.style.cssText = 'font:16px/1.5 system-ui,sans-serif;padding:24px';
-    a.href = location.href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'Open Pagewise in its own tab';
+    a.href = location.href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'Open wysiwyghtml in its own tab';
     p.append(a); document.body.append(p);
     return;
   }
@@ -2516,7 +2516,7 @@ function init() {
   if (p) openFromLink(p);
   // Small API for automation and testing. It reads and edits only the open document: no file
   // handle, no saving and no internal state.
-  window.Pagewise = Object.freeze({
+  window.wysiwyghtml = Object.freeze({
     openText: (text, name) => loadText(String(text), { name: String(name || 'page.html') }),
     html: () => faithfulSerialize(), plainHtml: () => serialize(false), goPage, undo, redo,
     info: () => ({ name: S.name, pages: S.pages.length, page: S.cur, dirty: S.dirty, ready: V.ready }),
